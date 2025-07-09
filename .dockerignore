@@ -1,0 +1,84 @@
+# Git
+.git
+.gitignore
+
+# Documentation
+README.md
+QUICKSTART.md
+QUICKSTART_SUPABASE.md
+docs/
+*.md
+
+# Development files
+Makefile
+env.example
+.env*
+*.log
+logs/
+
+# Python cache and build artifacts
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+wheels/
+pip-wheel-metadata/
+share/python-wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
+
+# Testing and coverage
+.tox/
+.nox/
+.coverage
+.coverage.*
+.cache
+nosetests.xml
+coverage.xml
+*.cover
+*.py,cover
+.hypothesis/
+.pytest_cache/
+htmlcov/
+
+# Development dependencies
+requirements-dev.txt
+
+# IDE and editor files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Docker files (avoid recursive copying)
+Dockerfile*
+docker-compose*.yml
+.dockerignore
+
+
+# Temporary files
+*.tmp
+*.temp
+temp/
+tmp/
+
+# Volumes (local data and logs)
+volumes/
+
+# Alembic migration versions (keep env.py and script.py.mako)
+alembic/versions/
+

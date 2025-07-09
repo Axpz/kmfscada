@@ -1,0 +1,965 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>生产车间智能监控中心</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- React and ReactDOM CDNs -->
+    <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+    <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+    <!-- Babel for JSX transformation in browser (for development/single file convenience) -->
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+
+    <style>
+        /* Global styles for Inter font and animations */
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
+        body {
+            font-family: 'Inter', sans-serif;
+        }
+        /* Keyframes for pulse animation */
+        @keyframes pulse-red {
+            0% { box-shadow: 0 0 0 0 rgba(229, 62, 62, 0.7); }
+            70% { box-shadow: 0 0 0 10px rgba(229, 62, 62, 0); }
+            100% { box-shadow: 0 0 0 0 rgba(229, 62, 62, 0); }
+        }
+        .animate-pulse {
+            animation: pulse-red 1.5s infinite;
+        }
+    </style>
+</head>
+<body class="min-h-screen bg-gradient-to-br from-gray-900 to-black text-gray-100 font-inter p-4 sm:p-6 lg:p-8">
+
+    <div id="root"></div>
+
+    <script type="text/babel">
+        const { useState, useEffect, useCallback } = React;
+        const { createRoot } = ReactDOM;
+
+        // Inline SVG icons (replacing Lucide-React components for self-contained HTML)
+        const iconSvgs = {
+            Thermometer: `<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-thermometer"><path d="M14 4v10.54a4 4 0 1 1-4 0V4a2 2 0 0 1 4 0Z"/><path d="M8 2h8"/><path d="M12 16h0"/></svg>`,
+            Gauge: `<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-gauge"><path d="m12 14 4-4"/><path d="M3.34 19.16a10 10 0 1 1 17.32 0"/><path d="M9 10a2 2 0 0 1 6 0"/></svg>`,
+            Ruler: `<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-ruler"><path d="M21.3 15.3a2.4 2.4 0 0 1 0 3.4l-2.6 2.6a2.4 2.4 0 0 1-3.4 0L2.7 12.3a2.4 2.4 0 0 1 0-3.4l2.6-2.6a2.4 2.4 0 0 1 3.4 0Z"/><path d="m7 21 6-6"/><path d="m3 17 6-6"/><path d="m11 19 6-6"/><path d="m15 21 6-6"/></svg>`,
+            Factory: `<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-factory"><path d="M2 20a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V8l-7 5V8l-7 5V4a2 2 0 0 0-2-2H4a2 2 0 0 0-2 2Z"/><path d="M17 18h1"/><path d="M12 18h1"/><path d="M7 18h1"/></svg>`,
+            FlaskConical: `<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-flask-conical"><path d="M14.4 8.4V2.5L9 2l.6 6.4M14.4 8.4l-5.4-.4m5.4.4L22 22H2L9 8.4m5.4 0L9 8.4"/></svg>`,
+            LineChart: `<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-line-chart"><path d="M3 3v18h18"/><path d="m18 10-4 4-2-2-5 5"/></svg>`,
+            TrendingUp: `<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-trending-up"><polyline points="22 7 13.5 15.5 8.5 10.5 2 17"/><polyline points="16 7 22 7 22 13"/></svg>`,
+            TrendingDown: `<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-trending-down"><polyline points="22 17 13.5 8.5 8.5 13.5 2 7"/><polyline points="16 17 22 17 22 11"/></svg>`,
+            CircleDot: `<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-circle-dot"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="1"/></svg>`,
+            Activity: `<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-activity"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg>`,
+            Scan: `<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-scan"><path d="M3 7V5a2 2 0 0 1 2-2h2"/><path d="M17 3h2a2 2 0 0 1 2 2v2"/><path d="M21 17v2a2 2 0 0 1-2 2h-2"/><path d="M7 21H5a2 2 0 0 1-2-2v-2"/></svg>`,
+            Cable: `<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-cable"><path d="M7 10v10c0 .55.45 1 1 1h8c.55 0 1-.45 1-1V10"/><path d="M5 5c.55 0 1 .45 1 1v4c0 .55-.45 1-1 1H4c-.55 0-1-.45-1-1V6c0-.55.45-1 1-1h1Z"/><path d="M19 5c.55 0 1 .45 1 1v4c0 .55-.45 1-1 1h-1c-.55 0-1-.45-1-1V6c0-.55.45-1 1-1h1Z"/><path d="M12 2v3"/><path d="M12 10v12"/></svg>`,
+            Droplet: `<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-droplet"><path d="M12 2.69l5.66 5.66a8 8 0 1 1-11.32 0z"/></svg>`,
+            Cog: `<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-cog"><path d="M12 20a8 8 0 1 0 0-16 8 8 0 0 0 0 16Z"/><path d="M12 14a2 2 0 1 0 0-4 2 2 0 0 0 0 4Z"/><path d="M12 2v2"/><path d="M12 22v-2"/><path d="M20 12h2"/><path d="M2 12h2"/><path d="m19.39 4.61-.7.7"/><path d="m4.61 19.39.7-.7"/><path d="m4.61 4.61.7.7"/><path d="m19.39 19.39-.7-.7"/></svg>`,
+        };
+
+        // Placeholder for shadcn/ui Card components (simplified for direct HTML)
+        const Card = ({ className, children }) => (
+            <div className={`rounded-xl border bg-gray-800 text-gray-100 shadow ${className}`}>
+                {children}
+            </div>
+        );
+
+        const CardHeader = ({ className, children }) => (
+            <div className={`flex flex-col space-y-1.5 p-6 ${className}`}>
+                {children}
+            </div>
+        );
+
+        const CardTitle = ({ className, children }) => (
+            <h3 className={`font-semibold leading-none tracking-tight ${className}`}>
+                {children}
+            </h3>
+        );
+
+        const CardContent = ({ className, children }) => (
+            <div className={`p-6 pt-0 ${className}`}>
+                {children}
+            </div>
+        );
+
+        // Simple Sparkline for Diameter Trend
+        const DiameterSparkline = ({ history }) => {
+            if (!history || history.length < 2) return <div className="h-16 w-full flex items-center justify-center text-gray-500 text-xs">数据不足</div>;
+
+            const maxVal = Math.max(...history);
+            const minVal = Math.min(...history);
+            const range = maxVal - minVal;
+
+            return (
+                <div className="relative w-full h-16 flex items-end overflow-hidden">
+                    {history.map((val, index) => {
+                        const height = range > 0 ? ((val - minVal) / range) * 100 : 0;
+                        const color = val > (history[index - 1] || val) ? 'bg-green-500' : val < (history[index - 1] || val) ? 'bg-red-500' : 'bg-blue-500';
+                        return (
+                            <div
+                                key={index}
+                                className={`flex-grow mx-px rounded-t-sm ${color}`}
+                                style={{ height: `${Math.max(5, height)}%` }}
+                            ></div>
+                        );
+                    })}
+                </div>
+            );
+        };
+
+        // Simple Sparkline for Fluoride Concentration Trend
+        const FluorideSparkline = ({ history }) => {
+            if (!history || history.length < 2) return <div className="h-16 w-full flex items-center justify-center text-gray-500 text-xs">数据不足</div>;
+
+            const maxVal = Math.max(...history);
+            const minVal = Math.min(...history);
+            const range = maxVal - minVal;
+
+            return (
+                <div className="relative w-full h-16 flex items-end overflow-hidden">
+                    {history.map((val, index) => {
+                        const height = range > 0 ? ((val - minVal) / range) * 100 : 0;
+                        const color = val > (history[index - 1] || val) ? 'bg-blue-500' : val < (history[index - 1] || val) ? 'bg-orange-500' : 'bg-gray-500';
+                        return (
+                            <div
+                                key={index}
+                                className={`flex-grow mx-px rounded-t-sm ${color}`}
+                                style={{ height: `${Math.max(5, height)}%` }}
+                            ></div>
+                        );
+                    })}
+                </div>
+            );
+        };
+
+        // Custom Temperature Chart Component (SVG based)
+        const TemperatureChart = ({ data }) => {
+            if (!data || data.length === 0) return <div className="h-48 w-full flex items-center justify-center text-gray-500 text-xs">数据不足</div>;
+
+            const width = 600; // Fixed width for SVG, will scale with responsive container
+            const height = 180;
+            const padding = 30;
+
+            const lineKeys = ['zone1', 'zone2', 'zone3', 'zone4', 'flange', 'moldZone1', 'moldZone2'];
+            const allValues = data.flatMap(d => lineKeys.map(key => d[key]));
+            const yMin = Math.min(...allValues);
+            const yMax = Math.max(...allValues);
+            const yRange = yMax - yMin;
+
+            const getX = (index) => (index / (data.length - 1)) * (width - 2 * padding) + padding;
+            const getY = (value) => height - padding - ((value - yMin) / yRange) * (height - 2 * padding);
+
+            const colors = {
+                zone1: "#8884d8",
+                zone2: "#82ca9d",
+                zone3: "#ffc658",
+                zone4: "#ff7300",
+                flange: "#a020f0",
+                moldZone1: "#1e90ff",
+                moldZone2: "#32cd32",
+            };
+
+            const linePaths = lineKeys.map(key => {
+                const points = data.map((d, i) => `${getX(i)},${getY(d[key])}`).join(' ');
+                return <polyline key={key} points={points} fill="none" stroke={colors[key] || "#ccc"} strokeWidth="2" />;
+            });
+
+            // Basic X-axis labels (time)
+            const xLabels = data.filter((_, i) => i % Math.ceil(data.length / 5) === 0).map((d, i) => (
+                <text key={i} x={getX(data.indexOf(d))} y={height - padding + 15} fill="#cbd5e0" fontSize="10" textAnchor="middle">
+                    {d.time}
+                </text>
+            ));
+
+            // Basic Y-axis labels
+            const yLabels = [yMin, (yMin + yMax) / 2, yMax].map((val, i) => (
+                <text key={i} x={padding - 5} y={getY(val)} fill="#cbd5e0" fontSize="10" textAnchor="end" alignmentBaseline="middle">
+                    {val.toFixed(0)}
+                </text>
+            ));
+
+            // Legend mapping for display
+            const legendNames = {
+                zone1: "机身一区",
+                zone2: "机身二区",
+                zone3: "机身三区",
+                zone4: "机身四区",
+                flange: "法兰温度",
+                moldZone1: "模具一区",
+                moldZone2: "模具二区",
+            };
+
+            return (
+                <div className="w-full">
+                    <svg viewBox={`0 0 ${width} ${height}`} className="w-full h-auto" preserveAspectRatio="xMidYMid meet">
+                        {/* Grid */}
+                        <line x1={padding} y1={height - padding} x2={width - padding} y2={height - padding} stroke="#4a5568" strokeDasharray="3 3" />
+                        <line x1={padding} y1={padding} x2={padding} y2={height - padding} stroke="#4a5568" strokeDasharray="3 3" />
+
+                        {/* Lines */}
+                        {linePaths}
+
+                        {/* X-axis labels */}
+                        {xLabels}
+                        {/* Y-axis labels */}
+                        {yLabels}
+
+                        {/* Legend */}
+                        <g transform={`translate(${width - padding - 100}, ${padding + 10})`}>
+                            {lineKeys.map((key, i) => (
+                                <g key={key} transform={`translate(0, ${i * 20})`}>
+                                    <rect x="0" y="-8" width="10" height="10" fill={colors[key] || "#ccc"} />
+                                    <text x="15" y="0" fill="#e2e8f0" fontSize="12">{legendNames[key] || key}</text>
+                                </g>
+                            ))}
+                        </g>
+                    </svg>
+                </div>
+            );
+        };
+
+        // Tooltip component (custom for equipment units)
+        const Tooltip = ({ children, content }) => {
+            const [show, setShow] = useState(false);
+            return (
+                <div className="relative flex items-center"
+                     onMouseEnter={() => setShow(true)}
+                     onMouseLeave={() => setShow(false)}>
+                    {children}
+                    {show && (
+                        <div className="absolute z-10 p-3 bg-gray-700 text-gray-100 text-xs rounded-lg shadow-lg -top-2 left-1/2 -translate-x-1/2 transform whitespace-nowrap border border-gray-600">
+                            {content}
+                        </div>
+                    )}
+                </div>
+            );
+        };
+
+        // Equipment Unit Component with integrated data and tooltip
+        const EquipmentUnit = ({ title, iconSvg, equipmentKey, bodyTemps, flangeTemp, moldTemps, screwSpeed, tractionSpd, realtimeDiameter, fluorideConc }) => {
+            const getEquipmentStatus = useCallback((key) => {
+                // This logic needs to be adapted if each line has its own detailed status
+                // For now, it uses the main line's data for simulation purposes
+                switch (key) {
+                    case 'production_body':
+                    case 'production_body_2':
+                    case 'production_body_3':
+                    case 'production_body_4':
+                        if (bodyTemps.zone1 < 210 || bodyTemps.zone1 > 230) return 'warning';
+                        if (bodyTemps.zone1 < 200 || bodyTemps.zone1 > 240) return 'fault';
+                        return 'normal';
+                    case 'mold_body':
+                    case 'mold_body_2':
+                    case 'mold_body_3':
+                    case 'mold_body_4':
+                        if (moldTemps.zone1 < 190 || moldTemps.zone1 > 205) return 'warning';
+                        if (moldTemps.zone1 < 180 || moldTemps.zone1 > 210) return 'fault';
+                        return 'normal';
+                    case 'flange_area':
+                    case 'flange_area_2':
+                    case 'flange_area_3':
+                    case 'flange_area_4':
+                        if (flangeTemp < 200 || flangeTemp > 220) return 'warning';
+                        if (flangeTemp < 190 || flangeTemp > 230) return 'fault';
+                        return 'normal';
+                    case 'screw_motor_line1':
+                    case 'screw_motor_line2':
+                    case 'screw_motor_line3':
+                    case 'screw_motor_line4':
+                    case 'extruder':
+                        if (screwSpeed < 100 || screwSpeed > 150) return 'warning';
+                        if (screwSpeed < 80 || screwSpeed > 170) return 'fault';
+                        return 'normal';
+                    case 'traction_line1':
+                    case 'traction_line2':
+                    case 'traction_line3':
+                    case 'traction_line4':
+                    case 'traction_machine':
+                        if (tractionSpd < 14 || tractionSpd > 16) return 'warning';
+                        if (tractionSpd < 13 || tractionSpd > 17) return 'fault';
+                        return 'normal';
+                    case 'online_detector':
+                        if (realtimeDiameter < 24.8 || realtimeDiameter > 25.2) return 'warning';
+                        if (realtimeDiameter < 24.5 || realtimeDiameter > 25.5) return 'fault';
+                        return 'normal';
+                    case 'cleaning_station':
+                        if (fluorideConc < 0.7 || fluorideConc > 0.9) return 'warning';
+                        if (fluorideConc < 0.6 || fluorideConc > 1.0) return 'fault';
+                        return 'normal';
+                    case 'reflow_soldering_3':
+                        if (moldTemps.zone1 < 180 || moldTemps.zone1 > 210) return 'fault';
+                        if (moldTemps.zone1 < 190 || moldTemps.zone1 > 205) return 'warning';
+                        return 'normal';
+                    default:
+                        return 'normal';
+                }
+            }, [bodyTemps, flangeTemp, moldTemps, screwSpeed, tractionSpd, realtimeDiameter, fluorideConc]);
+
+
+            const status = getEquipmentStatus(equipmentKey);
+            let statusColorClass = 'bg-green-500';
+            let statusBgClass = 'bg-gray-700';
+            let statusBorderClass = 'border-blue-500';
+            let statusText = '正常';
+            let pulseClass = '';
+
+            if (status === 'fault') {
+                statusColorClass = 'bg-red-500';
+                statusBgClass = 'bg-red-900/30';
+                statusBorderClass = 'border-red-500';
+                statusText = '故障';
+                pulseClass = 'animate-pulse';
+            } else if (status === 'warning') {
+                statusColorClass = 'bg-yellow-500';
+                statusBgClass = 'bg-yellow-900/30';
+                statusBorderClass = 'border-yellow-500';
+                statusText = '警告';
+            }
+
+            // Determine data to display based on equipmentKey
+            let displayData = null;
+            switch (equipmentKey) {
+                case 'production_body':
+                case 'production_body_2':
+                case 'production_body_3':
+                case 'production_body_4':
+                    displayData = (
+                        <div className="text-right text-xs text-gray-200 mt-1">
+                            <p>一区: {bodyTemps.zone1}°C</p>
+                            <p>二区: {bodyTemps.zone2}°C</p>
+                            <p>三区: {bodyTemps.zone3}°C</p>
+                            <p>四区: {bodyTemps.zone4}°C</p>
+                        </div>
+                    );
+                    break;
+                case 'mold_body':
+                case 'mold_body_2':
+                case 'mold_body_3':
+                case 'mold_body_4':
+                    displayData = (
+                        <div className="text-right text-xs text-gray-200 mt-1">
+                            <p>一区: {moldTemps.zone1}°C</p>
+                            <p>二区: {moldTemps.zone2}°C</p>
+                        </div>
+                    );
+                    break;
+                case 'flange_area':
+                case 'flange_area_2':
+                case 'flange_area_3':
+                case 'flange_area_4':
+                    displayData = <p className="text-right text-xs text-gray-200 mt-1">{flangeTemp}°C</p>;
+                    break;
+                case 'screw_motor_line1':
+                case 'screw_motor_line2':
+                case 'screw_motor_line3':
+                case 'screw_motor_line4':
+                case 'extruder':
+                    displayData = <p className="text-right text-xs text-gray-200 mt-1">{screwSpeed} RPM</p>;
+                    break;
+                case 'traction_line1':
+                case 'traction_line2':
+                case 'traction_line3':
+                case 'traction_line4':
+                case 'traction_machine':
+                    displayData = <p className="text-right text-xs text-gray-200 mt-1">{tractionSpd} m/min</p>;
+                    break;
+                case 'online_detector':
+                    displayData = <p className="text-right text-xs text-gray-200 mt-1">{realtimeDiameter} mm</p>;
+                    break;
+                case 'cleaning_station':
+                    displayData = <p className="text-right text-xs text-gray-200 mt-1">{fluorideConc} ppm</p>;
+                    break;
+                default:
+                    displayData = null; // Or a default message if no specific data
+            }
+
+
+            const tooltipContent = (
+                <div className="text-left">
+                    <p className="font-bold">{title}</p>
+                    <p>状态: <span className={`${status === 'fault' ? 'text-red-400' : status === 'warning' ? 'text-yellow-400' : 'text-green-400'}`}>{statusText}</span></p>
+                    {equipmentKey.includes('production_body') && (
+                        <>
+                            <p>机身一区温度: {bodyTemps.zone1}°C</p>
+                            <p>机身二区温度: {bodyTemps.zone2}°C</p>
+                            <p>机身三区温度: {bodyTemps.zone3}°C</p>
+                            <p>机身四区温度: {bodyTemps.zone4}°C</p>
+                        </>
+                    )}
+                    {equipmentKey.includes('mold_body') && (
+                        <>
+                            <p>模具一区温度: {moldTemps.zone1}°C</p>
+                            <p>模具二区温度: {moldTemps.zone2}°C</p>
+                        </>
+                    )}
+                    {equipmentKey.includes('flange_area') && <p>法兰一个区温度: {flangeTemp}°C</p>}
+                    {equipmentKey.includes('screw_motor') && <p>螺杆电机转速: {screwSpeed} RPM</p>}
+                    {equipmentKey.includes('traction_line') && <p>牵引机速度: {tractionSpd} m/min</p>}
+                    {equipmentKey === 'extruder' && <p>螺杆电机转速: {screwSpeed} RPM</p>}
+                    {equipmentKey === 'online_detector' && <p>实时测量直径: {realtimeDiameter} mm</p>}
+                    {equipmentKey === 'traction_machine' && <p>牵引机速度: {tractionSpd} m/min</p>}
+                    {equipmentKey === 'cleaning_station' && <p>氟离子浓度: {fluorideConc} ppm</p>}
+                </div>
+            );
+
+            return (
+                <Tooltip content={tooltipContent}>
+                    <div className={`equipment-unit rounded-md p-3 flex items-start justify-between border ${statusBgClass} ${statusBorderClass} ${pulseClass} transition-all duration-300 hover:scale-105 flex-grow min-w-0`}>
+                        <div className="flex flex-col items-center mr-2">
+                            <div className={`status-indicator w-3 h-3 rounded-full ${statusColorClass} mb-2`}></div>
+                            {iconSvg && <div dangerouslySetInnerHTML={{ __html: iconSvg }} className="mb-1 text-blue-300 w-5 h-5" />}
+                            <span className="text-sm text-gray-200 text-center">{title}</span>
+                            {status !== 'normal' && <span className={`text-xs mt-1 ${status === 'fault' ? 'text-red-200' : 'text-yellow-200'}`}>{statusText}</span>}
+                        </div>
+                        <div className="flex-grow flex flex-col justify-end">
+                            {displayData}
+                        </div>
+                    </div>
+                </Tooltip>
+            );
+        };
+
+        // LineOverviewCard for consolidated line status
+        const LineOverviewCard = ({ lineName, pipelineNumber, batchNumber, currentBatchLength, oeePercentage }) => (
+            <Card className="bg-gray-800 border border-gray-700 flex flex-col items-center justify-center p-1 flex-grow min-w-0">
+                <CardHeader className="p-0 pb-1 text-center">
+                    <CardTitle className="text-base font-bold text-blue-300 flex items-center justify-center whitespace-nowrap">
+                        <div dangerouslySetInnerHTML={{ __html: iconSvgs.Factory }} className="mr-1 w-4 h-4" />
+                        {lineName}
+                    </CardTitle>
+                </CardHeader>
+                <CardContent className="flex flex-col items-center justify-center p-0 pt-1 w-full">
+                    <div className="flex items-center justify-between text-gray-300 text-sm w-full mb-0.5">
+                        <span className="font-semibold whitespace-nowrap mr-1">流水线:</span>
+                        <span className="text-white font-bold whitespace-nowrap">{pipelineNumber}</span>
+                    </div>
+                    <div className="flex items-center justify-between text-gray-300 text-sm w-full mb-0.5">
+                        <span className="font-semibold whitespace-nowrap mr-1">批号:</span>
+                        <span className="text-white font-bold whitespace-nowrap">{batchNumber}</span>
+                    </div>
+                    <div className="flex items-center justify-between text-gray-300 text-sm w-full mb-1">
+                        <span className="font-semibold whitespace-nowrap mr-1">长度:</span>
+                        <span className="text-white font-bold whitespace-nowrap">{currentBatchLength} m</span>
+                    </div>
+                    <div className="relative w-16 h-16 mt-1">
+                        <svg className="w-full h-full" viewBox="0 0 100 100">
+                            <circle
+                                className="text-gray-700"
+                                strokeWidth="5"
+                                stroke="currentColor"
+                                fill="transparent"
+                                r="40"
+                                cx="50"
+                                cy="50"
+                            />
+                            <circle
+                                className="text-green-500 transition-all duration-1000 ease-in-out"
+                                strokeWidth="5"
+                                strokeDasharray={`${oeePercentage * 2.51}, 251`}
+                                strokeDashoffset="0"
+                                strokeLinecap="round"
+                                stroke="currentColor"
+                                fill="transparent"
+                                r="40"
+                                cx="50"
+                                cy="50"
+                                transform="rotate(-90 50 50)"
+                            />
+                        </svg>
+                        <div className="absolute inset-0 flex items-center justify-center">
+                            <span className="text-white text-lg font-bold">{oeePercentage}%</span>
+                        </div>
+                    </div>
+                    <p className="text-gray-400 text-sm mt-0.5 text-center">OEE</p>
+                </CardContent>
+            </Card>
+        );
+
+
+        // Main App component
+        const App = () => {
+            // State variables for simulated data (detailed for Line 1, summary for others)
+            const [line1DetailedData, setLine1DetailedData] = useState({
+                bodyTemperatures: { zone1: 220, zone2: 225, zone3: 218, zone4: 222 },
+                flangeTemperature: 210,
+                moldTemperatures: { zone1: 195, zone2: 198 },
+                screwMotorSpeed: 120, // RPM
+                realtimeDiameter: 25.0, // mm
+                tractionSpeed: 15, // m/min
+                currentBatchLength: 1500, // meters
+                fluorideConcentration: 0.8, // ppm
+            });
+
+            const [line1Summary, setLine1Summary] = useState({
+                pipelineNumber: 'PL-001',
+                batchNumber: 'BATCH-20250708-001',
+                currentBatchLength: 1500,
+                oeePercentage: 85,
+            });
+            const [line2Summary, setLine2Summary] = useState({
+                pipelineNumber: 'PL-002',
+                batchNumber: 'BATCH-20250708-002',
+                currentBatchLength: 1200,
+                oeePercentage: 88,
+            });
+            const [line3Summary, setLine3Summary] = useState({
+                pipelineNumber: 'PL-003',
+                batchNumber: 'BATCH-20250708-003',
+                currentBatchLength: 1800,
+                oeePercentage: 92,
+            });
+            const [line4Summary, setLine4Summary] = useState({
+                pipelineNumber: 'PL-004',
+                batchNumber: 'BATCH-20250708-004',
+                currentBatchLength: 900,
+                oeePercentage: 78,
+            });
+
+            // State for diameter history to simulate a simple trend
+            const [diameterHistory, setDiameterHistory] = useState([]);
+            // State for body temperature history for the chart
+            const [bodyTempHistory, setBodyTempHistory] = useState([]);
+            // State for fluoride history to simulate a simple trend
+            const [fluorideHistory, setFluorideHistory] = useState([]);
+
+            // Simulate real-time data updates
+            useEffect(() => {
+                const interval = setInterval(() => {
+                    const now = new Date();
+                    const timeString = now.toLocaleTimeString();
+
+                    // Simulate detailed data for Line 1
+                    const newBodyTemps = {
+                        zone1: parseFloat((line1DetailedData.bodyTemperatures.zone1 + (Math.random() * 2 - 1)).toFixed(1)),
+                        zone2: parseFloat((line1DetailedData.bodyTemperatures.zone2 + (Math.random() * 2 - 1)).toFixed(1)),
+                        zone3: parseFloat((line1DetailedData.bodyTemperatures.zone3 + (Math.random() * 2 - 1)).toFixed(1)),
+                        zone4: parseFloat((line1DetailedData.bodyTemperatures.zone4 + (Math.random() * 2 - 1)).toFixed(1)),
+                    };
+                    const newFlangeTemperature = parseFloat((line1DetailedData.flangeTemperature + (Math.random() * 1 - 0.5)).toFixed(1));
+                    const newMoldTemperatures = {
+                        zone1: parseFloat((line1DetailedData.moldTemperatures.zone1 + (Math.random() * 1 - 0.5)).toFixed(1)),
+                        zone2: parseFloat((line1DetailedData.moldTemperatures.zone2 + (Math.random() * 1 - 0.5)).toFixed(1)),
+                    };
+                    const newScrewMotorSpeed = parseFloat((line1DetailedData.screwMotorSpeed + (Math.random() * 5 - 2.5)).toFixed(0));
+                    const newRealtimeDiameter = parseFloat((25.0 + (Math.random() * 0.2 - 0.1)).toFixed(2));
+                    const newTractionSpeed = parseFloat((line1DetailedData.tractionSpeed + (Math.random() * 0.5 - 0.25)).toFixed(1));
+                    const newCurrentBatchLength = line1DetailedData.currentBatchLength + parseFloat((Math.random() * 10).toFixed(0));
+                    const newFluorideConcentration = parseFloat((0.8 + (Math.random() * 0.05 - 0.025)).toFixed(2));
+
+                    setLine1DetailedData({
+                        bodyTemperatures: newBodyTemps,
+                        flangeTemperature: newFlangeTemperature,
+                        moldTemperatures: newMoldTemperatures,
+                        screwMotorSpeed: newScrewMotorSpeed,
+                        realtimeDiameter: newRealtimeDiameter,
+                        tractionSpeed: newTractionSpeed,
+                        currentBatchLength: newCurrentBatchLength,
+                        fluorideConcentration: newFluorideConcentration,
+                    });
+
+                    setDiameterHistory(prevHistory => [...prevHistory.slice(-29), newRealtimeDiameter]);
+                    setFluorideHistory(prevHistory => [...prevHistory.slice(-29), newFluorideConcentration]);
+
+                    setBodyTempHistory(prevHistory => {
+                        const newChartDataPoint = {
+                            time: timeString,
+                            zone1: newBodyTemps.zone1,
+                            zone2: newBodyTemps.zone2,
+                            zone3: newBodyTemps.zone3,
+                            zone4: newBodyTemps.zone4,
+                            flange: newFlangeTemperature,
+                            moldZone1: newMoldTemperatures.zone1,
+                            moldZone2: newMoldTemperatures.zone2,
+                        };
+                        const updatedHistory = [...prevHistory, newChartDataPoint];
+                        return updatedHistory.slice(-20);
+                    });
+
+                    // Simulate summary data for all lines
+                    setLine1Summary(prev => ({
+                        ...prev,
+                        currentBatchLength: prev.currentBatchLength + parseFloat((Math.random() * 10).toFixed(0)),
+                        oeePercentage: Math.max(70, Math.min(95, parseFloat((prev.oeePercentage + (Math.random() * 1 - 0.5)).toFixed(0)))),
+                    }));
+                    setLine2Summary(prev => ({
+                        ...prev,
+                        currentBatchLength: prev.currentBatchLength + parseFloat((Math.random() * 10).toFixed(0)),
+                        oeePercentage: Math.max(70, Math.min(95, parseFloat((prev.oeePercentage + (Math.random() * 1 - 0.5)).toFixed(0)))),
+                    }));
+                    setLine3Summary(prev => ({
+                        ...prev,
+                        currentBatchLength: prev.currentBatchLength + parseFloat((Math.random() * 10).toFixed(0)),
+                        oeePercentage: Math.max(70, Math.min(95, parseFloat((prev.oeePercentage + (Math.random() * 1 - 0.5)).toFixed(0)))),
+                    }));
+                    setLine4Summary(prev => ({
+                        ...prev,
+                        currentBatchLength: prev.currentBatchLength + parseFloat((Math.random() * 10).toFixed(0)),
+                        oeePercentage: Math.max(70, Math.min(95, parseFloat((prev.oeePercentage + (Math.random() * 1 - 0.5)).toFixed(0)))),
+                    }));
+
+                }, 1500); // Update every 1.5 seconds for a more dynamic feel
+
+                return () => clearInterval(interval); // Cleanup on unmount
+            }, [line1DetailedData, line1Summary, line2Summary, line3Summary, line4Summary]);
+
+
+            return (
+                <div className="min-h-screen bg-gradient-to-br from-gray-900 to-black text-gray-100 font-inter p-4 sm:p-6 lg:p-8">
+                    {/* Header */}
+                    <header className="mb-8 text-center bg-gray-800/50 p-6 rounded-xl shadow-lg border border-gray-700 flex flex-col items-center justify-center">
+                        <h1 className="text-4xl font-extrabold text-blue-300 mb-2 tracking-wide">生产车间智能监控中心</h1>
+                        <p className="text-lg text-gray-400 mb-4">实时数据与车间概览</p>
+
+                        {/* Consolidated Line Overviews */}
+                        <div className="flex flex-row flex-nowrap justify-between w-full max-w-full overflow-x-auto pb-2">
+                            <LineOverviewCard
+                                lineName="一号线概览"
+                                pipelineNumber={line1Summary.pipelineNumber}
+                                batchNumber={line1Summary.batchNumber}
+                                currentBatchLength={line1Summary.currentBatchLength}
+                                oeePercentage={line1Summary.oeePercentage}
+                            />
+                            <LineOverviewCard
+                                lineName="二号线概览"
+                                pipelineNumber={line2Summary.pipelineNumber}
+                                batchNumber={line2Summary.batchNumber}
+                                currentBatchLength={line2Summary.currentBatchLength}
+                                oeePercentage={line2Summary.oeePercentage}
+                            />
+                            <LineOverviewCard
+                                lineName="三号线概览"
+                                pipelineNumber={line3Summary.pipelineNumber}
+                                batchNumber={line3Summary.batchNumber}
+                                currentBatchLength={line3Summary.currentBatchLength}
+                                oeePercentage={line3Summary.oeePercentage}
+                            />
+                            <LineOverviewCard
+                                lineName="四号线概览"
+                                pipelineNumber={line4Summary.pipelineNumber}
+                                batchNumber={line4Summary.batchNumber}
+                                currentBatchLength={line4Summary.currentBatchLength}
+                                oeePercentage={line4Summary.oeePercentage}
+                            />
+                        </div>
+                    </header>
+
+                    {/* Main Dashboard Grid - Changed to single column for full width */}
+                    <div className="grid grid-cols-1 gap-6">
+
+                        {/* Workshop Diagram content now takes full width */}
+                        <div className="space-y-6">
+                            <div className="workshop-diagram-container p-0 bg-gray-900 border border-gray-700 rounded-lg w-full">
+                                {/* Added header for the workshop diagram content */}
+                                <div className="flex items-center justify-between mb-4 px-4 pt-4">
+                                    <h2 className="text-xl font-bold text-blue-300 flex items-center">
+                                        <div dangerouslySetInnerHTML={{ __html: iconSvgs.Factory }} className="mr-2 w-6 h-6" />
+                                        生产车间布局
+                                    </h2>
+                                </div>
+                                <div className="grid grid-cols-1 gap-6">
+                                    {/* Original 一号线 (Detailed View) */}
+                                    <div className="line-section md:col-span-2 bg-gray-800 border border-gray-700 rounded-xl p-0">
+                                        <div className="line-header text-blue-400 font-bold text-lg mb-2 px-4 pt-4">一号线</div>
+                                        {/* Equipment row for Line 1 - Horizontal, spread out */}
+                                        <div className="equipment-row flex flex-row flex-nowrap justify-between gap-2 overflow-x-auto pb-2 px-4">
+                                            <EquipmentUnit
+                                                title="生产机身"
+                                                iconSvg={iconSvgs.Cog}
+                                                equipmentKey="production_body"
+                                                bodyTemps={line1DetailedData.bodyTemperatures}
+                                            />
+                                            <EquipmentUnit
+                                                title="模具机身"
+                                                iconSvg={iconSvgs.FlaskConical}
+                                                equipmentKey="mold_body"
+                                                moldTemps={line1DetailedData.moldTemperatures}
+                                            />
+                                            <EquipmentUnit
+                                                title="法兰"
+                                                iconSvg={iconSvgs.Thermometer}
+                                                equipmentKey="flange_area"
+                                                flangeTemp={line1DetailedData.flangeTemperature}
+                                            />
+                                            <EquipmentUnit
+                                                title="螺杆电机"
+                                                iconSvg={iconSvgs.Gauge}
+                                                equipmentKey="screw_motor_line1"
+                                                screwSpeed={line1DetailedData.screwMotorSpeed}
+                                            />
+                                            <EquipmentUnit
+                                                title="牵引机"
+                                                iconSvg={iconSvgs.Cable}
+                                                equipmentKey="traction_line1"
+                                                tractionSpd={line1DetailedData.tractionSpeed}
+                                            />
+                                        </div>
+                                        {/* 关键温度趋势 chart */}
+                                        <Card className="bg-gray-700/50 border border-gray-600 mt-4 mx-4">
+                                            <CardHeader className="px-4 pt-4 pb-2">
+                                                <CardTitle className="text-lg font-bold text-blue-200 flex items-center">
+                                                    <div dangerouslySetInnerHTML={{ __html: iconSvgs.Thermometer }} className="mr-2 w-5 h-5" />
+                                                    关键温度趋势
+                                                </CardTitle>
+                                            </CardHeader>
+                                            <CardContent className="px-4 pb-4">
+                                                <TemperatureChart data={bodyTempHistory} />
+                                            </CardContent>
+                                        </Card>
+                                        {/* 实时直径趋势 chart */}
+                                        <Card className="bg-gray-700/50 border border-gray-600 mt-4 mx-4">
+                                            <CardHeader className="px-4 pt-4 pb-2">
+                                                <CardTitle className="text-lg font-bold text-blue-200 flex items-center">
+                                                    <div dangerouslySetInnerHTML={{ __html: iconSvgs.LineChart }} className="mr-2 w-5 h-5" />
+                                                    实时直径趋势
+                                                </CardTitle>
+                                            </CardHeader>
+                                            <CardContent className="px-4 pb-4">
+                                                <DiameterSparkline history={diameterHistory} />
+                                                <p className="text-gray-400 text-sm mt-4 text-center">最近30次测量值</p>
+                                            </CardContent>
+                                        </Card>
+                                        {/* 实时氟离子趋势 chart */}
+                                        <Card className="bg-gray-700/50 border border-gray-600 mt-4 mx-4 mb-4">
+                                            <CardHeader className="px-4 pt-4 pb-2">
+                                                <CardTitle className="text-lg font-bold text-blue-200 flex items-center">
+                                                    <div dangerouslySetInnerHTML={{ __html: iconSvgs.Droplet }} className="mr-2 w-5 h-5" />
+                                                    实时氟离子趋势
+                                                </CardTitle>
+                                            </CardHeader>
+                                            <CardContent className="px-4 pb-4">
+                                                <FluorideSparkline history={fluorideHistory} />
+                                                <p className="text-gray-400 text-sm mt-4 text-center">最近30次测量值</p>
+                                            </CardContent>
+                                        </Card>
+                                    </div>
+
+                                    {/* 复制 一号线 - 作为 二号线 */}
+                                    <div className="line-section md:col-span-2 bg-gray-800 border border-gray-700 rounded-xl p-0">
+                                        <div className="line-header text-blue-400 font-bold text-lg mb-2 px-4 pt-4">二号线</div>
+                                        <div className="equipment-row flex flex-row flex-nowrap justify-between gap-2 overflow-x-auto pb-2 px-4">
+                                            <EquipmentUnit
+                                                title="生产机身"
+                                                iconSvg={iconSvgs.Cog}
+                                                equipmentKey="production_body_2"
+                                                bodyTemps={line1DetailedData.bodyTemperatures}
+                                            />
+                                            <EquipmentUnit
+                                                title="模具机身"
+                                                iconSvg={iconSvgs.FlaskConical}
+                                                equipmentKey="mold_body_2"
+                                                moldTemps={line1DetailedData.moldTemperatures}
+                                            />
+                                            <EquipmentUnit
+                                                title="法兰"
+                                                iconSvg={iconSvgs.Thermometer}
+                                                equipmentKey="flange_area_2"
+                                                flangeTemp={line1DetailedData.flangeTemperature}
+                                            />
+                                            <EquipmentUnit
+                                                title="螺杆电机"
+                                                iconSvg={iconSvgs.Gauge}
+                                                equipmentKey="screw_motor_line2"
+                                                screwSpeed={line1DetailedData.screwMotorSpeed}
+                                            />
+                                            <EquipmentUnit
+                                                title="牵引机"
+                                                iconSvg={iconSvgs.Cable}
+                                                equipmentKey="traction_line2"
+                                                tractionSpd={line1DetailedData.tractionSpeed}
+                                            />
+                                        </div>
+                                        <Card className="bg-gray-700/50 border border-gray-600 mt-4 mx-4">
+                                            <CardHeader className="px-4 pt-4 pb-2">
+                                                <CardTitle className="text-lg font-bold text-blue-200 flex items-center">
+                                                    <div dangerouslySetInnerHTML={{ __html: iconSvgs.Thermometer }} className="mr-2 w-5 h-5" />
+                                                    关键温度趋势
+                                                </CardTitle>
+                                            </CardHeader>
+                                            <CardContent className="px-4 pb-4">
+                                                <TemperatureChart data={bodyTempHistory} />
+                                            </CardContent>
+                                        </Card>
+                                        <Card className="bg-gray-700/50 border border-gray-600 mt-4 mx-4">
+                                            <CardHeader className="px-4 pt-4 pb-2">
+                                                <CardTitle className="text-lg font-bold text-blue-200 flex items-center">
+                                                    <div dangerouslySetInnerHTML={{ __html: iconSvgs.LineChart }} className="mr-2 w-5 h-5" />
+                                                    实时直径趋势
+                                                </CardTitle>
+                                            </CardHeader>
+                                            <CardContent className="px-4 pb-4">
+                                                <DiameterSparkline history={diameterHistory} />
+                                                <p className="text-gray-400 text-sm mt-4 text-center">最近30次测量值</p>
+                                            </CardContent>
+                                        </Card>
+                                        <Card className="bg-gray-700/50 border border-gray-600 mt-4 mx-4 mb-4">
+                                            <CardHeader className="px-4 pt-4 pb-2">
+                                                <CardTitle className="text-lg font-bold text-blue-200 flex items-center">
+                                                    <div dangerouslySetInnerHTML={{ __html: iconSvgs.Droplet }} className="mr-2 w-5 h-5" />
+                                                    实时氟离子趋势
+                                                </CardTitle>
+                                            </CardHeader>
+                                            <CardContent className="px-4 pb-4">
+                                                <FluorideSparkline history={fluorideHistory} />
+                                                <p className="text-gray-400 text-sm mt-4 text-center">最近30次测量值</p>
+                                            </CardContent>
+                                        </Card>
+                                    </div>
+
+                                    {/* 复制 一号线 - 作为 三号线 */}
+                                    <div className="line-section md:col-span-2 bg-gray-800 border border-gray-700 rounded-xl p-0">
+                                        <div className="line-header text-blue-400 font-bold text-lg mb-2 px-4 pt-4">三号线</div>
+                                        <div className="equipment-row flex flex-row flex-nowrap justify-between gap-2 overflow-x-auto pb-2 px-4">
+                                            <EquipmentUnit
+                                                title="生产机身"
+                                                iconSvg={iconSvgs.Cog}
+                                                equipmentKey="production_body_3"
+                                                bodyTemps={line1DetailedData.bodyTemperatures}
+                                            />
+                                            <EquipmentUnit
+                                                title="模具机身"
+                                                iconSvg={iconSvgs.FlaskConical}
+                                                equipmentKey="mold_body_3"
+                                                moldTemps={line1DetailedData.moldTemperatures}
+                                            />
+                                            <EquipmentUnit
+                                                title="法兰"
+                                                iconSvg={iconSvgs.Thermometer}
+                                                equipmentKey="flange_area_3"
+                                                flangeTemp={line1DetailedData.flangeTemperature}
+                                            />
+                                            <EquipmentUnit
+                                                title="螺杆电机"
+                                                iconSvg={iconSvgs.Gauge}
+                                                equipmentKey="screw_motor_line3"
+                                                screwSpeed={line1DetailedData.screwMotorSpeed}
+                                            />
+                                            <EquipmentUnit
+                                                title="牵引机"
+                                                iconSvg={iconSvgs.Cable}
+                                                equipmentKey="traction_line3"
+                                                tractionSpd={line1DetailedData.tractionSpeed}
+                                            />
+                                        </div>
+                                        <Card className="bg-gray-700/50 border border-gray-600 mt-4 mx-4">
+                                            <CardHeader className="px-4 pt-4 pb-2">
+                                                <CardTitle className="text-lg font-bold text-blue-200 flex items-center">
+                                                    <div dangerouslySetInnerHTML={{ __html: iconSvgs.Thermometer }} className="mr-2 w-5 h-5" />
+                                                    关键温度趋势
+                                                </CardTitle>
+                                            </CardHeader>
+                                            <CardContent className="px-4 pb-4">
+                                                <TemperatureChart data={bodyTempHistory} />
+                                            </CardContent>
+                                        </Card>
+                                        <Card className="bg-gray-700/50 border border-gray-600 mt-4 mx-4">
+                                            <CardHeader className="px-4 pt-4 pb-2">
+                                                <CardTitle className="text-lg font-bold text-blue-200 flex items-center">
+                                                    <div dangerouslySetInnerHTML={{ __html: iconSvgs.LineChart }} className="mr-2 w-5 h-5" />
+                                                    实时直径趋势
+                                                </CardTitle>
+                                            </CardHeader>
+                                            <CardContent className="px-4 pb-4">
+                                                <DiameterSparkline history={diameterHistory} />
+                                                <p className="text-gray-400 text-sm mt-4 text-center">最近30次测量值</p>
+                                            </CardContent>
+                                        </Card>
+                                        <Card className="bg-gray-700/50 border border-gray-600 mt-4 mx-4 mb-4">
+                                            <CardHeader className="px-4 pt-4 pb-2">
+                                                <CardTitle className="text-lg font-bold text-blue-200 flex items-center">
+                                                    <div dangerouslySetInnerHTML={{ __html: iconSvgs.Droplet }} className="mr-2 w-5 h-5" />
+                                                    实时氟离子趋势
+                                                </CardTitle>
+                                            </CardHeader>
+                                            <CardContent className="px-4 pb-4">
+                                                <FluorideSparkline history={fluorideHistory} />
+                                                <p className="text-gray-400 text-sm mt-4 text-center">最近30次测量值</p>
+                                            </CardContent>
+                                        </Card>
+                                    </div>
+
+                                    {/* 复制 一号线 - 作为 四号线 */}
+                                    <div className="line-section md:col-span-2 bg-gray-800 border border-gray-700 rounded-xl p-0">
+                                        <div className="line-header text-blue-400 font-bold text-lg mb-2 px-4 pt-4">四号线</div>
+                                        <div className="equipment-row flex flex-row flex-nowrap justify-between gap-2 overflow-x-auto pb-2 px-4">
+                                            <EquipmentUnit
+                                                title="生产机身"
+                                                iconSvg={iconSvgs.Cog}
+                                                equipmentKey="production_body_4"
+                                                bodyTemps={line1DetailedData.bodyTemperatures}
+                                            />
+                                            <EquipmentUnit
+                                                title="模具机身"
+                                                iconSvg={iconSvgs.FlaskConical}
+                                                equipmentKey="mold_body_4"
+                                                moldTemps={line1DetailedData.moldTemperatures}
+                                            />
+                                            <EquipmentUnit
+                                                title="法兰"
+                                                iconSvg={iconSvgs.Thermometer}
+                                                equipmentKey="flange_area_4"
+                                                flangeTemp={line1DetailedData.flangeTemperature}
+                                            />
+                                            <EquipmentUnit
+                                                title="螺杆电机"
+                                                iconSvg={iconSvgs.Gauge}
+                                                equipmentKey="screw_motor_line4"
+                                                screwSpeed={line1DetailedData.screwMotorSpeed}
+                                            />
+                                            <EquipmentUnit
+                                                title="牵引机"
+                                                iconSvg={iconSvgs.Cable}
+                                                equipmentKey="traction_line4"
+                                                tractionSpd={line1DetailedData.tractionSpeed}
+                                            />
+                                        </div>
+                                        <Card className="bg-gray-700/50 border border-gray-600 mt-4 mx-4">
+                                            <CardHeader className="px-4 pt-4 pb-2">
+                                                <CardTitle className="text-lg font-bold text-blue-200 flex items-center">
+                                                    <div dangerouslySetInnerHTML={{ __html: iconSvgs.Thermometer }} className="mr-2 w-5 h-5" />
+                                                    关键温度趋势
+                                                </CardTitle>
+                                            </CardHeader>
+                                            <CardContent className="px-4 pb-4">
+                                                <TemperatureChart data={bodyTempHistory} />
+                                            </CardContent>
+                                        </Card>
+                                        <Card className="bg-gray-700/50 border border-gray-600 mt-4 mx-4">
+                                            <CardHeader className="px-4 pt-4 pb-2">
+                                                <CardTitle className="text-lg font-bold text-blue-200 flex items-center">
+                                                    <div dangerouslySetInnerHTML={{ __html: iconSvgs.LineChart }} className="mr-2 w-5 h-5" />
+                                                    实时直径趋势
+                                                </CardTitle>
+                                            </CardHeader>
+                                            <CardContent className="px-4 pb-4">
+                                                <DiameterSparkline history={diameterHistory} />
+                                                <p className="text-gray-400 text-sm mt-4 text-center">最近30次测量值</p>
+                                            </CardContent>
+                                        </Card>
+                                        <Card className="bg-gray-700/50 border border-gray-600 mt-4 mx-4 mb-4">
+                                            <CardHeader className="px-4 pt-4 pb-2">
+                                                <CardTitle className="text-lg font-bold text-blue-200 flex items-center">
+                                                    <div dangerouslySetInnerHTML={{ __html: iconSvgs.Droplet }} className="mr-2 w-5 h-5" />
+                                                    实时氟离子趋势
+                                                </CardTitle>
+                                            </CardHeader>
+                                            <CardContent className="px-4 pb-4">
+                                                <FluorideSparkline history={fluorideHistory} />
+                                                <p className="text-gray-400 text-sm mt-4 text-center">最近30次测量值</p>
+                                            </CardContent>
+                                        </Card>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* Footer */}
+                    <footer className="mt-8 text-center text-gray-500 text-sm">
+                        <p>&copy; 2025 生产车间智能监控中心. All rights reserved.</p>
+                    </footer>
+                </div>
+            );
+        };
+
+        createRoot(document.getElementById('root')).render(<App />);
+    </script>
+</body>
+</html>

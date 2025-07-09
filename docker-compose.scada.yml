@@ -1,0 +1,150 @@
+# Minimal SCADA System - User Authentication + FastAPI Backend
+# Usage:
+#   Start: docker compose -f docker-compose.scada.yml up
+#   Stop:  docker compose -f docker-compose.scada.yml down
+#   Reset: docker compose -f docker-compose.scada.yml down -v --remove-orphans
+
+name: scada-minimal
+
+services:
+  # PostgreSQL Database
+  db:
+    container_name: scada-db
+    image: supabase/postgres:15.8.1.060
+    restart: unless-stopped
+    ports:
+      - "5432:5432"
+    volumes:
+      - ./volumes/db/realtime.sql:/docker-entrypoint-initdb.d/migrations/99-realtime.sql:Z
+      - ./volumes/db/webhooks.sql:/docker-entrypoint-initdb.d/init-scripts/98-webhooks.sql:Z
+      - ./volumes/db/roles.sql:/docker-entrypoint-initdb.d/init-scripts/99-roles.sql:Z
+      - ./volumes/db/jwt.sql:/docker-entrypoint-initdb.d/init-scripts/99-jwt.sql:Z
+      - scada_db_data:/var/lib/postgresql/data:Z
+      - ./volumes/db/_supabase.sql:/docker-entrypoint-initdb.d/migrations/97-_supabase.sql:Z
+      - ./volumes/db/logs.sql:/docker-entrypoint-initdb.d/migrations/99-logs.sql:Z
+      - ./volumes/db/pooler.sql:/docker-entrypoint-initdb.d/migrations/99-pooler.sql:Z
+    healthcheck:
+      test: ["CMD", "pg_isready", "-U", "postgres", "-h", "localhost"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    environment:
+      POSTGRES_HOST: /var/run/postgresql
+      PGPORT: ${POSTGRES_PORT:-5432}
+      POSTGRES_PORT: ${POSTGRES_PORT:-5432}
+      PGPASSWORD: ${POSTGRES_PASSWORD:-your-super-secret-password}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-your-super-secret-password}
+      PGDATABASE: ${POSTGRES_DB:-scada}
+      POSTGRES_DB: ${POSTGRES_DB:-scada}
+      JWT_SECRET: ${JWT_SECRET:-your-super-secret-jwt-token-with-at-least-32-characters-long}
+      JWT_EXP: ${JWT_EXPIRY:-3600}
+    command:
+      [
+        "postgres",
+        "-c",
+        "config_file=/etc/postgresql/postgresql.conf",
+        "-c",
+        "log_min_messages=fatal"
+      ]
+
+  # API Gateway (Kong)
+  kong:
+    container_name: scada-kong
+    image: kong:2.8.1
+    restart: unless-stopped
+    ports:
+      - "8080:8080"
+      - "8443:8443"
+    volumes:
+      - ./volumes/api/kong.yml:/home/kong/kong.yml:ro
+    environment:
+      KONG_DATABASE: "off"
+      KONG_DECLARATIVE_CONFIG: /home/kong/kong.yml
+      KONG_DNS_ORDER: LAST,A,CNAME
+      KONG_PLUGINS: cors,key-auth
+    depends_on:
+      db:
+        condition: service_healthy
+
+  # Authentication Service (Supabase Auth)
+  auth:
+    container_name: scada-auth
+    image: supabase/gotrue:v2.176.1
+    restart: unless-stopped
+    expose:
+      - "9999"
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      GOTRUE_API_HOST: 0.0.0.0
+      GOTRUE_API_PORT: 9999
+      API_EXTERNAL_URL: ${API_EXTERNAL_URL:-http://localhost:8080}
+      
+      GOTRUE_DB_DRIVER: postgres
+      GOTRUE_DB_DATABASE_URL: postgres://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-your-super-secret-password}@db:5432/${POSTGRES_DB:-scada}
+      
+      GOTRUE_SITE_URL: ${SITE_URL:-http://localhost:8080}
+      GOTRUE_URI_ALLOW_LIST: ${ADDITIONAL_REDIRECT_URLS:-}
+      GOTRUE_DISABLE_SIGNUP: ${DISABLE_SIGNUP:-false}
+      
+      GOTRUE_JWT_ADMIN_ROLES: service_role
+      GOTRUE_JWT_AUD: authenticated
+      GOTRUE_JWT_DEFAULT_GROUP_NAME: authenticated
+      GOTRUE_JWT_EXP: ${JWT_EXPIRY:-3600}
+      GOTRUE_JWT_SECRET: ${JWT_SECRET:-your-super-secret-jwt-token-with-at-least-32-characters-long}
+      
+      GOTRUE_EXTERNAL_EMAIL_ENABLED: ${ENABLE_EMAIL_SIGNUP:-true}
+      GOTRUE_EXTERNAL_ANONYMOUS_USERS_ENABLED: ${ENABLE_ANONYMOUS_USERS:-false}
+      GOTRUE_MAILER_AUTOCONFIRM: ${ENABLE_EMAIL_AUTOCONFIRM:-true}
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:9999/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+
+  # FastAPI Backend Service
+  api:
+    container_name: scada-api
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    expose:
+      - "8000"
+    environment:
+      DATABASE_URL: postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-your-super-secret-password}@db:5432/${POSTGRES_DB:-scada}
+      JWT_SECRET: ${JWT_SECRET:-your-super-secret-jwt-token-with-at-least-32-characters-long}
+      SUPABASE_URL: ${SUPABASE_URL:-http://localhost:8080}
+      SUPABASE_SERVICE_KEY: ${SERVICE_ROLE_KEY:-your-service-role-key}
+      CORS_ORIGINS: ${CORS_ORIGINS:-http://localhost:8080,http://localhost:3000}
+    depends_on:
+      db:
+        condition: service_healthy
+      auth:
+        condition: service_healthy
+    volumes:
+      - ./backend:/app
+      - /app/__pycache__
+
+  # Frontend Application
+  frontend:
+    container_name: scada-frontend
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    expose:
+      - "3000"
+    environment:
+      NEXT_PUBLIC_SUPABASE_URL: ${SUPABASE_URL:-http://localhost:8080}
+      NEXT_PUBLIC_SUPABASE_ANON_KEY: ${ANON_KEY:-your-anon-key}
+      NEXT_PUBLIC_API_URL: ${API_URL:-http://localhost:8080}
+    depends_on:
+      kong:
+        condition: service_started
+      api:
+        condition: service_started
+
+volumes:
+  scada_db_data: 

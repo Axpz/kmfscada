@@ -1,0 +1,52 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+*.pyc
+*.env
+.env
+.env.*
+*.sqlite3
+
+# Node
+frontend/node_modules/
+frontend/.next/
+frontend/out/
+*.log
+yarn.lock
+npm-debug.log
+package-lock.json
+
+# Docker
+volumes/db/data/
+volumes/db/logs/
+volumes/db/init/
+volumes/logs/
+volumes/storage/
+
+# VSCode/IDE
+.vscode/
+.idea/
+.DS_Store
+
+# System
+Thumbs.db
+
+# Database dumps
+*.sql
+
+# Misc
+*.bak
+*.swp
+*.swo
+
+# Docker Compose override
+*.override.yml
+
+# Test
+coverage/
+htmlcov/
+
+# Kong config secrets
+volumes/api/kong.yml.secret 

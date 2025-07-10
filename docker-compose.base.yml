@@ -1,11 +1,12 @@
 name: supabase
 
 services:
-
   studio:
     container_name: supabase-studio
     image: supabase/studio:2025.06.30-sha-6f5982d
     restart: unless-stopped
+    networks:
+      - zxnet
     healthcheck:
       test:
         [
@@ -43,6 +44,8 @@ services:
     container_name: supabase-kong
     image: kong:2.8.1
     restart: unless-stopped
+    networks:
+      - zxnet
     ports:
       - ${KONG_HTTP_PORT}:8000/tcp
       - ${KONG_HTTPS_PORT}:8443/tcp
@@ -68,6 +71,8 @@ services:
     container_name: supabase-auth
     image: supabase/gotrue:v2.176.1
     restart: unless-stopped
+    networks:
+      - zxnet
     healthcheck:
       test:
         [
@@ -149,6 +154,8 @@ services:
     container_name: supabase-rest
     image: postgrest/postgrest:v12.2.12
     restart: unless-stopped
+    networks:
+      - zxnet
     depends_on:
       db:
         # Disable this if you are using an external Postgres database
@@ -171,6 +178,8 @@ services:
     container_name: realtime-dev.supabase-realtime
     image: supabase/realtime:v2.34.47
     restart: unless-stopped
+    networks:
+      - zxnet
     depends_on:
       db:
         # Disable this if you are using an external Postgres database
@@ -213,6 +222,8 @@ services:
     container_name: supabase-meta
     image: supabase/postgres-meta:v0.89.3
     restart: unless-stopped
+    networks:
+      - zxnet
     depends_on:
       db:
         # Disable this if you are using an external Postgres database
@@ -230,6 +241,8 @@ services:
     container_name: supabase-db
     image: supabase/postgres:15.8.1.060
     restart: unless-stopped
+    networks:
+      - zxnet
     volumes:
       - ./volumes/db/realtime.sql:/docker-entrypoint-initdb.d/migrations/99-realtime.sql:Z
       # Must be superuser to create event trigger
@@ -285,6 +298,8 @@ services:
     container_name: supabase-pooler
     image: supabase/supavisor:2.5.6
     restart: unless-stopped
+    networks:
+      - zxnet
     ports:
       - ${POSTGRES_PORT}:5432
       - ${POOLER_PROXY_PORT_TRANSACTION}:6543
@@ -335,3 +350,7 @@ services:
 volumes:
   db-config:
   db-data:
+
+networks:
+  zxnet:
+    external: true

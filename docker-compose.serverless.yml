@@ -3,6 +3,8 @@ services:
     container_name: supabase-edge-functions
     image: supabase/edge-runtime:v1.67.4
     restart: unless-stopped
+    networks:
+      - zxnet
     volumes:
       - ./volumes/functions:/home/deno/functions:Z
     environment:
@@ -19,3 +21,7 @@ services:
         "--main-service",
         "/home/deno/functions/main"
       ]
+
+networks:
+  zxnet:
+    external: true

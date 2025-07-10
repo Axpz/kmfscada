@@ -1,11 +1,4 @@
-# Minimal SCADA System - Supabase Auth Integration
-# Usage:
-#   Start: docker compose -f docker-compose.scada.yml up
-#   Stop:  docker compose -f docker-compose.scada.yml down
-#   Reset: docker compose -f docker-compose.scada.yml down -v --remove-orphans
-
 name: scada
-
 services:
   # FastAPI Backend Service
   api:
@@ -14,8 +7,10 @@ services:
       context: .
       dockerfile: Dockerfile
     restart: unless-stopped
+    networks:
+      - zxnet
     expose:
-      - "8000"
+      - "8080"
     environment:
       # Database
       DATABASE_URL: postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-your-super-secret-password}@db:5432/${POSTGRES_DB:-scada}
@@ -52,6 +47,8 @@ services:
       context: ../kmfscada-ui
       dockerfile: Dockerfile
     restart: unless-stopped
+    networks:
+      - zxnet
     expose:
       - "3000"
     environment:
@@ -63,3 +60,7 @@ services:
         condition: service_started
       api:
         condition: service_started
+
+networks:
+  zxnet:
+    external: true

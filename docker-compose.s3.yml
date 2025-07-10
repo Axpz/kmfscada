@@ -1,6 +1,8 @@
 services:
   minio:
     image: minio/minio
+    networks:
+      - zxnet
     ports:
       - '9000:9000'
       - '9001:9001'
@@ -18,6 +20,8 @@ services:
 
   minio-createbucket:
     image: minio/mc
+    networks:
+      - zxnet
     depends_on:
       minio:
         condition: service_healthy
@@ -33,6 +37,8 @@ services:
     container_name: supabase-storage
     image: supabase/storage-api:v1.24.7
     restart: unless-stopped
+    networks:
+      - zxnet
     volumes:
       - ./volumes/storage:/var/lib/storage:z
     healthcheck:
@@ -76,6 +82,8 @@ services:
     container_name: supabase-imgproxy
     image: darthsim/imgproxy:v3.8.0
     restart: unless-stopped
+    networks:
+      - zxnet
     volumes:
       - ./volumes/storage:/var/lib/storage:z
     healthcheck:
@@ -93,3 +101,7 @@ services:
       IMGPROXY_LOCAL_FILESYSTEM_ROOT: /
       IMGPROXY_USE_ETAG: "true"
       IMGPROXY_ENABLE_WEBP_DETECTION: ${IMGPROXY_ENABLE_WEBP_DETECTION}
+
+networks:
+  zxnet:
+    external: true

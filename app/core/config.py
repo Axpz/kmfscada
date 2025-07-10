@@ -1,7 +1,8 @@
 from pydantic_settings import BaseSettings
-from typing import List, Optional
+from typing import List, Optional, Union
 import os
 from functools import lru_cache
+from pydantic import field_validator
 
 
 class Settings(BaseSettings):
@@ -20,8 +21,23 @@ class Settings(BaseSettings):
     SUPABASE_ENABLE_SIGNUP: bool = True
     SUPABASE_ENABLE_ANONYMOUS: bool = False
     
-    # CORS
-    CORS_ORIGINS: List[str] = ["http://localhost:3000", "http://localhost:3001", "http://localhost:8080"]
+    # CORS - Use Union to handle both string and list
+    CORS_ORIGINS: Union[str, List[str]] = [
+        "http://localhost:3000",
+        "http://localhost:3001",
+        "http://localhost:8080",
+        "http://localhost:8000",
+        "http://localhost:8001",
+        "http://localhost:8002",
+    ]
+    
+    @field_validator('CORS_ORIGINS', mode='after')
+    @classmethod
+    def parse_cors_origins(cls, v):
+        if isinstance(v, str):
+            # Handle comma-separated string from environment variable
+            return [origin.strip() for origin in v.split(',') if origin.strip()]
+        return v
     
     # API
     API_V1_STR: str = "/api/v1"
@@ -41,6 +57,7 @@ class Settings(BaseSettings):
     class Config:
         env_file = ".env"
         case_sensitive = True
+        extra = "ignore"  # Ignore extra environment variables
 
 
 @lru_cache()

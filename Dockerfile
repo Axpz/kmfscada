@@ -25,5 +25,5 @@ RUN adduser --disabled-password --gecos '' appuser \
 
 USER appuser
 
-EXPOSE 8000
+EXPOSE 8080
 CMD ["python", "main.py"]

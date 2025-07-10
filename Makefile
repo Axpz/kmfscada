@@ -1,4 +1,4 @@
-.PHONY: help install dev lint format clean db-init db-migrate db-upgrade db-downgrade
+.PHONY: help install dev lint format clean db-init db-migrate db-upgrade db-downgrade up
 
 help: ## Show this help message
 	@echo "Available commands:"
@@ -67,3 +67,11 @@ setup: install db-init ## Complete setup (install + init db)
 
 setup-scada: install db-init scada-up ## Complete setup with SCADA
 	@echo "SCADA setup complete! Run 'make scada-logs' to view logs." 
+
+up:
+	docker network inspect zxnet >/dev/null 2>&1 || docker network create zxnet
+	docker compose -f docker-compose.base.yml -f docker-compose.scada.yml up -d
+
+dev:
+	docker network inspect zxnet >/dev/null 2>&1 || docker network create zxnet
+	docker compose -f docker-compose.base.yml up

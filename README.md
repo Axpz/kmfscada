@@ -2,6 +2,8 @@
 
 基于FastAPI的SCADA系统后端API，采用最佳实践架构设计，使用Supabase进行用户认证和管理。
 
+![Dashboard](docs/dashboard.png)
+
 ## 架构概览
 
 ```

@@ -74,4 +74,5 @@ up:
 
 dev:
 	docker network inspect zxnet >/dev/null 2>&1 || docker network create zxnet
-	docker compose -f docker-compose.base.yml up
+	docker compose -f docker-compose.base.yml up -d
+	source ~/venv/bin/activate && python3 main.py

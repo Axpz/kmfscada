@@ -4,121 +4,9 @@
 #   Stop:  docker compose -f docker-compose.scada.yml down
 #   Reset: docker compose -f docker-compose.scada.yml down -v --remove-orphans
 
-name: scada-minimal
+name: scada
 
 services:
-  # PostgreSQL Database (Supabase-compatible)
-  db:
-    container_name: scada-db
-    image: supabase/postgres:15.8.1.060
-    restart: unless-stopped
-    ports:
-      - "5432:5432"
-    volumes:
-      - ./volumes/db/_supabase.sql:/docker-entrypoint-initdb.d/migrations/97-_supabase.sql:Z
-      - ./volumes/db/jwt.sql:/docker-entrypoint-initdb.d/init-scripts/99-jwt.sql:Z
-      - ./volumes/db/roles.sql:/docker-entrypoint-initdb.d/init-scripts/99-roles.sql:Z
-      - scada_db_data:/var/lib/postgresql/data:Z
-    healthcheck:
-      test: ["CMD", "pg_isready", "-U", "postgres", "-h", "localhost"]
-      interval: 5s
-      timeout: 5s
-      retries: 10
-    environment:
-      POSTGRES_HOST: /var/run/postgresql
-      PGPORT: ${POSTGRES_PORT:-5432}
-      POSTGRES_PORT: ${POSTGRES_PORT:-5432}
-      PGPASSWORD: ${POSTGRES_PASSWORD:-your-super-secret-password}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-your-super-secret-password}
-      PGDATABASE: ${POSTGRES_DB:-scada}
-      POSTGRES_DB: ${POSTGRES_DB:-scada}
-      JWT_SECRET: ${JWT_SECRET:-your-super-secret-jwt-token-with-at-least-32-characters-long}
-      JWT_EXP: ${JWT_EXPIRY:-3600}
-    command:
-      [
-        "postgres",
-        "-c",
-        "config_file=/etc/postgresql/postgresql.conf",
-        "-c",
-        "log_min_messages=fatal"
-      ]
-
-  # API Gateway (Kong) - Simplified for Auth only
-  kong:
-    container_name: scada-kong
-    image: kong:2.8.1
-    restart: unless-stopped
-    ports:
-      - "8080:8080"
-      - "8443:8443"
-    volumes:
-      - ./volumes/api/kong-auth.yml:/home/kong/kong.yml:ro
-    environment:
-      KONG_DATABASE: "off"
-      KONG_DECLARATIVE_CONFIG: /home/kong/kong.yml
-      KONG_DNS_ORDER: LAST,A,CNAME
-      KONG_PLUGINS: cors,key-auth
-    depends_on:
-      db:
-        condition: service_healthy
-
-  # Supabase Auth Service (GoTrue)
-  auth:
-    container_name: scada-auth
-    image: supabase/gotrue:v2.176.1
-    restart: unless-stopped
-    expose:
-      - "9999"
-    depends_on:
-      db:
-        condition: service_healthy
-    environment:
-      # Basic Configuration
-      GOTRUE_API_HOST: 0.0.0.0
-      GOTRUE_API_PORT: 9999
-      API_EXTERNAL_URL: ${API_EXTERNAL_URL:-http://localhost:8080}
-      
-      # Database Configuration
-      GOTRUE_DB_DRIVER: postgres
-      GOTRUE_DB_DATABASE_URL: postgres://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-your-super-secret-password}@db:5432/${POSTGRES_DB:-scada}
-      
-      # Site Configuration
-      GOTRUE_SITE_URL: ${SITE_URL:-http://localhost:8080}
-      GOTRUE_URI_ALLOW_LIST: ${ADDITIONAL_REDIRECT_URLS:-}
-      GOTRUE_DISABLE_SIGNUP: ${DISABLE_SIGNUP:-false}
-      
-      # JWT Configuration
-      GOTRUE_JWT_ADMIN_ROLES: service_role
-      GOTRUE_JWT_AUD: authenticated
-      GOTRUE_JWT_DEFAULT_GROUP_NAME: authenticated
-      GOTRUE_JWT_EXP: ${JWT_EXPIRY:-3600}
-      GOTRUE_JWT_SECRET: ${JWT_SECRET:-your-super-secret-jwt-token-with-at-least-32-characters-long}
-      
-      # Email Configuration
-      GOTRUE_EXTERNAL_EMAIL_ENABLED: ${ENABLE_EMAIL_SIGNUP:-true}
-      GOTRUE_EXTERNAL_ANONYMOUS_USERS_ENABLED: ${ENABLE_ANONYMOUS_USERS:-false}
-      GOTRUE_MAILER_AUTOCONFIRM: ${ENABLE_EMAIL_AUTOCONFIRM:-true}
-      
-      # Security Configuration
-      GOTRUE_DISABLE_SIGNUP: ${DISABLE_SIGNUP:-false}
-      GOTRUE_ENABLE_SIGNUP: ${ENABLE_SIGNUP:-true}
-      GOTRUE_ENABLE_CONFIRMATIONS: ${ENABLE_CONFIRMATIONS:-true}
-      GOTRUE_ENABLE_EMAIL_CHANGE: ${ENABLE_EMAIL_CHANGE:-true}
-      
-      # Rate Limiting
-      GOTRUE_RATE_LIMIT_EMAIL_SENT: ${RATE_LIMIT_EMAIL_SENT:-30}
-      GOTRUE_RATE_LIMIT_SMS_SENT: ${RATE_LIMIT_SMS_SENT:-5}
-      
-      # Session Configuration
-      GOTRUE_JWT_EXP: ${JWT_EXPIRY:-3600}
-      GOTRUE_REFRESH_TOKEN_ROTATION: ${REFRESH_TOKEN_ROTATION:-true}
-      GOTRUE_REFRESH_TOKEN_REUSE_INTERVAL: ${REFRESH_TOKEN_REUSE_INTERVAL:-10}
-    healthcheck:
-      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:9999/health"]
-      interval: 10s
-      timeout: 5s
-      retries: 3
-
   # FastAPI Backend Service
   api:
     container_name: scada-api
@@ -157,9 +45,9 @@ services:
       - .:/app
       - /app/__pycache__
 
-  # Frontend Application (Optional)
-  frontend:
-    container_name: scada-frontend
+  # Frontend UI Service
+  ui:
+    container_name: scada-ui
     build:
       context: ../kmfscada-ui
       dockerfile: Dockerfile
@@ -175,6 +63,3 @@ services:
         condition: service_started
       api:
         condition: service_started
-
-volumes:
-  scada_db_data: 

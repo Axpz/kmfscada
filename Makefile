@@ -53,17 +53,17 @@ docker-compose-up: ## Start services with Docker Compose
 docker-compose-down: ## Stop services with Docker Compose
 	docker-compose down
 
-supabase-up: ## Start Supabase services
-	docker-compose -f docker-compose.scada.yml up -d
+scada-up: ## Start SCADA services
+	docker-compose -f docker-compose.scada.yml up
 
-supabase-down: ## Stop Supabase services
+scada-down: ## Stop SCADA services
 	docker-compose -f docker-compose.scada.yml down
 
-supabase-logs: ## View Supabase logs
+scada-logs: ## View SCADA logs
 	docker-compose -f docker-compose.scada.yml logs -f
 
 setup: install db-init ## Complete setup (install + init db)
 	@echo "Setup complete! Run 'make dev' to start the development server."
 
-setup-supabase: install db-init supabase-up ## Complete setup with Supabase
-	@echo "Supabase setup complete! Run 'make supabase-logs' to view logs." 
+setup-scada: install db-init scada-up ## Complete setup with SCADA
+	@echo "SCADA setup complete! Run 'make scada-logs' to view logs." 

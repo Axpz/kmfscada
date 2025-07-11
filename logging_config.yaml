@@ -1,0 +1,97 @@
+version: 1
+disable_existing_loggers: false
+
+formatters:
+  structured:
+    class: app.core.logging.StructuredFormatter
+  
+  colored:
+    class: app.core.logging.ColoredFormatter
+    format: '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+  
+  simple:
+    format: '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+    datefmt: '%Y-%m-%d %H:%M:%S'
+
+handlers:
+  console:
+    class: logging.StreamHandler
+    level: INFO
+    formatter: colored
+    stream: ext://sys.stdout
+  
+  file:
+    class: logging.handlers.RotatingFileHandler
+    level: INFO
+    formatter: structured
+    filename: logs/app.log
+    maxBytes: 10485760  # 10MB
+    backupCount: 5
+    encoding: utf8
+  
+  error_file:
+    class: logging.handlers.RotatingFileHandler
+    level: ERROR
+    formatter: structured
+    filename: logs/error.log
+    maxBytes: 10485760  # 10MB
+    backupCount: 5
+    encoding: utf8
+  
+  security_file:
+    class: logging.handlers.RotatingFileHandler
+    level: INFO
+    formatter: structured
+    filename: logs/security.log
+    maxBytes: 10485760  # 10MB
+    backupCount: 5
+    encoding: utf8
+  
+  performance_file:
+    class: logging.handlers.RotatingFileHandler
+    level: INFO
+    formatter: structured
+    filename: logs/performance.log
+    maxBytes: 10485760  # 10MB
+    backupCount: 5
+    encoding: utf8
+
+loggers:
+  app:
+    level: INFO
+    handlers: [console, file]
+    propagate: false
+  
+  security:
+    level: INFO
+    handlers: [console, security_file]
+    propagate: false
+  
+  performance:
+    level: INFO
+    handlers: [console, performance_file]
+    propagate: false
+  
+  database:
+    level: INFO
+    handlers: [console, file]
+    propagate: false
+  
+  api:
+    level: INFO
+    handlers: [console, file]
+    propagate: false
+  
+  middleware:
+    level: INFO
+    handlers: [console, file]
+    propagate: false
+  
+  startup:
+    level: INFO
+    handlers: [console, file]
+    propagate: false
+
+root:
+  level: INFO
+  handlers: [console, file, error_file] 

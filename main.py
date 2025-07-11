@@ -4,16 +4,29 @@ from contextlib import asynccontextmanager
 
 from app.core.config import settings
 from app.core.database import engine, Base
+from app.core.logging import init_logging, get_logger
+from app.middleware import LoggingMiddleware
 from app.api.v1.api import api_router
 
 # Create database tables
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     # Startup
+    logger = get_logger("startup")
+    logger.info("Starting SCADA API application")
+    
+    # 初始化日志系统
+    init_logging()
+    logger.info("Logging system initialized")
+    
+    # 创建数据库表
     Base.metadata.create_all(bind=engine)
+    logger.info("Database tables created/verified")
+    
     yield
+    
     # Shutdown
-    pass
+    logger.info("Shutting down SCADA API application")
 
 app = FastAPI(
     title=settings.PROJECT_NAME,
@@ -32,6 +45,9 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# Logging middleware
+app.add_middleware(LoggingMiddleware)
 
 # Health check endpoint
 @app.get("/health")

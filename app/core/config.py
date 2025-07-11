@@ -10,10 +10,13 @@ class Settings(BaseSettings):
     DATABASE_URL: str = "postgresql://postgres:password@localhost:5432/scada"
     
     # Supabase Configuration
-    SUPABASE_URL: str = "http://localhost:8080"
-    SUPABASE_SERVICE_KEY: str = "your-service-role-key"
-    SUPABASE_ANON_KEY: str = "your-anon-key"
-    SUPABASE_JWT_SECRET: str = "your-super-secret-jwt-token-with-at-least-32-characters-long"
+    SUPABASE_URL: str = "http://localhost:8000"
+        
+    JWT_SECRET: str = "your-super-secret-jwt-token-with-at-least-32-characters-long"
+    JWT_AUDIENCE: Optional[str] = None  # Set this to your project reference ID if needed  
+    SERVICE_ROLE_KEY: str = "your-service-role-key"
+    ANON_KEY: str = "your-anon-key"
+
     
     # Supabase Auth Settings
     SUPABASE_AUTH_ENABLED: bool = True

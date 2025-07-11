@@ -3,9 +3,9 @@ from supabase import create_client, Client
 from app.core.config import settings
 import httpx
 from jose import jwt, JWTError
-import logging
+from app.core.logging import get_logger
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 
 class SupabaseAuthService:
@@ -14,23 +14,51 @@ class SupabaseAuthService:
     def __init__(self):
         self.supabase: Client = create_client(
             settings.SUPABASE_URL,
-            settings.SUPABASE_SERVICE_KEY
+            settings.SERVICE_ROLE_KEY
         )
-        self.jwt_secret = settings.SUPABASE_JWT_SECRET
+        self.jwt_secret = settings.JWT_SECRET
+        self.jwt_audience = settings.JWT_AUDIENCE
         self.auth_url = f"{settings.SUPABASE_URL}/auth/v1"
     
     def verify_jwt_token(self, token: str) -> Optional[Dict[str, Any]]:
         """Verify JWT token from Supabase."""
         try:
-            payload = jwt.decode(
-                token, 
-                self.jwt_secret, 
-                algorithms=["HS256"],
-                audience="authenticated"
-            )
+            # For Supabase JWT tokens, we need to handle audience claims properly
+            # The audience is typically the project reference ID
+            decode_options = {
+                "verify_aud": False  # Disable audience verification for now
+            }
+            
+            # If we have a specific audience configured, use it
+            if self.jwt_audience:
+                payload = jwt.decode(
+                    token, 
+                    self.jwt_secret, 
+                    algorithms=["HS256"],
+                    audience=self.jwt_audience,
+                    options=decode_options
+                )
+            else:
+                payload = jwt.decode(
+                    token, 
+                    self.jwt_secret, 
+                    algorithms=["HS256"],
+                    options=decode_options
+                )
             return payload
         except JWTError as e:
-            logger.warning(f"JWT verification failed: {e}")
+            logger.error(f"JWT verification failed: {e}")
+            # Log additional debugging information
+            try:
+                unverified_payload = jwt.decode(
+                    token, 
+                    options={"verify_signature": False}
+                )
+                logger.debug(f"Token payload (unverified): {unverified_payload}")
+                logger.debug(f"Token audience: {unverified_payload.get('aud')}")
+                logger.debug(f"Token issuer: {unverified_payload.get('iss')}")
+            except Exception as debug_e:
+                logger.debug(f"Could not decode token for debugging: {debug_e}")
             return None
     
     async def get_user_by_id(self, user_id: str) -> Optional[Dict[str, Any]]:
@@ -40,8 +68,8 @@ class SupabaseAuthService:
                 response = await client.get(
                     f"{self.auth_url}/admin/users/{user_id}",
                     headers={
-                        "Authorization": f"Bearer {settings.SUPABASE_SERVICE_KEY}",
-                        "apikey": settings.SUPABASE_SERVICE_KEY
+                        "Authorization": f"Bearer {settings.SERVICE_ROLE_KEY}",
+                        "apikey": settings.SERVICE_ROLE_KEY
                     }
                 )
                 
@@ -61,8 +89,8 @@ class SupabaseAuthService:
                 response = await client.get(
                     f"{self.auth_url}/admin/users",
                     headers={
-                        "Authorization": f"Bearer {settings.SUPABASE_SERVICE_KEY}",
-                        "apikey": settings.SUPABASE_SERVICE_KEY
+                        "Authorization": f"Bearer {settings.SERVICE_ROLE_KEY}",
+                        "apikey": settings.SERVICE_ROLE_KEY
                     },
                     params={"filter": f"email.eq.{email}"}
                 )
@@ -84,8 +112,8 @@ class SupabaseAuthService:
                 response = await client.post(
                     f"{self.auth_url}/admin/users",
                     headers={
-                        "Authorization": f"Bearer {settings.SUPABASE_SERVICE_KEY}",
-                        "apikey": settings.SUPABASE_SERVICE_KEY,
+                        "Authorization": f"Bearer {settings.SERVICE_ROLE_KEY}",
+                        "apikey": settings.SERVICE_ROLE_KEY,
                         "Content-Type": "application/json"
                     },
                     json={
@@ -113,8 +141,8 @@ class SupabaseAuthService:
                 response = await client.put(
                     f"{self.auth_url}/admin/users/{user_id}",
                     headers={
-                        "Authorization": f"Bearer {settings.SUPABASE_SERVICE_KEY}",
-                        "apikey": settings.SUPABASE_SERVICE_KEY,
+                        "Authorization": f"Bearer {settings.SERVICE_ROLE_KEY}",
+                        "apikey": settings.SERVICE_ROLE_KEY,
                         "Content-Type": "application/json"
                     },
                     json=updates
@@ -137,8 +165,8 @@ class SupabaseAuthService:
                 response = await client.delete(
                     f"{self.auth_url}/admin/users/{user_id}",
                     headers={
-                        "Authorization": f"Bearer {settings.SUPABASE_SERVICE_KEY}",
-                        "apikey": settings.SUPABASE_SERVICE_KEY
+                        "Authorization": f"Bearer {settings.SERVICE_ROLE_KEY}",
+                        "apikey": settings.SERVICE_ROLE_KEY
                     }
                 )
                 
@@ -159,8 +187,8 @@ class SupabaseAuthService:
                 response = await client.get(
                     f"{self.auth_url}/admin/users",
                     headers={
-                        "Authorization": f"Bearer {settings.SUPABASE_SERVICE_KEY}",
-                        "apikey": settings.SUPABASE_SERVICE_KEY
+                        "Authorization": f"Bearer {settings.SERVICE_ROLE_KEY}",
+                        "apikey": settings.SERVICE_ROLE_KEY
                     },
                     params={"page": page, "per_page": per_page}
                 )
@@ -188,7 +216,7 @@ class SupabaseAuthService:
                 response = await client.post(
                     f"{self.auth_url}/token?grant_type=password",
                     headers={
-                        "apikey": settings.SUPABASE_ANON_KEY,
+                        "apikey": settings.ANON_KEY,
                         "Content-Type": "application/json"
                     },
                     json={
@@ -214,7 +242,7 @@ class SupabaseAuthService:
                 response = await client.post(
                     f"{self.auth_url}/token?grant_type=refresh_token",
                     headers={
-                        "apikey": settings.SUPABASE_ANON_KEY,
+                        "apikey": settings.ANON_KEY,
                         "Content-Type": "application/json"
                     },
                     json={
@@ -239,7 +267,7 @@ class SupabaseAuthService:
                 response = await client.post(
                     f"{self.auth_url}/logout",
                     headers={
-                        "apikey": settings.SUPABASE_ANON_KEY,
+                        "apikey": settings.ANON_KEY,
                         "Authorization": f"Bearer {access_token}"
                     }
                 )

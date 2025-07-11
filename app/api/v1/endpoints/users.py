@@ -15,19 +15,21 @@ async def get_users(
 ):
     """Get all users (admin only)"""
     try:
+        logger.info(f"Getting users: {current_user}")
         users = await supabase_auth.list_users()
+        logger.info(f"Users: {users}")
         if users:
             return {
                 "users": [
                     {
                         "id": user.get("id"),
                         "email": user.get("email"),
-                        "role": user.get("app_metadata", {}).get("role", "user"),
+                        "role": user.get("user_metadata", {}).get("role", "user"),
                         "created_at": user.get("created_at"),
                         "last_sign_in_at": user.get("last_sign_in_at"),
                         "confirmed_at": user.get("confirmed_at")
                     }
-                    for user in users
+                    for user in users.get("users", [])
                 ]
             }
         else:
@@ -72,7 +74,7 @@ async def create_user(
             # Set role in app_metadata
             await supabase_auth.update_user(
                 supabase_user.get("id"),
-                {"app_metadata": {"role": role}}
+                {"user_metadata": {"role": role}}
             )
             
             return {
@@ -116,7 +118,7 @@ async def update_user(
         update_data = {}
         
         if role:
-            update_data["app_metadata"] = {"role": role}
+            update_data["user_metadata"] = {"role": role}
         
         if username or full_name:
             user_metadata = user_data.get("user_metadata", {})
@@ -132,7 +134,7 @@ async def update_user(
                 return {
                     "id": result.get("id"),
                     "email": result.get("email"),
-                    "role": result.get("app_metadata", {}).get("role", "user"),
+                    "role": result.get("user_metadata", {}).get("role", "user"),
                     "user_metadata": result.get("user_metadata", {}),
                     "updated_at": result.get("updated_at")
                 }

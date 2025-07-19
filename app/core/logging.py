@@ -176,7 +176,7 @@ def setup_logging(
         console_handler = logging.StreamHandler(sys.stdout)
         if settings.ENVIRONMENT == "development":
             console_formatter = ColoredFormatter(
-                '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+                '%(asctime)s - %(name)s - %(lineno)d - %(levelname)s - %(message)s'
             )
         else:
             console_formatter = StructuredFormatter()

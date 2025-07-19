@@ -66,7 +66,10 @@ setup: install db-init ## Complete setup (install + init db)
 	@echo "Setup complete! Run 'make dev' to start the development server."
 
 setup-scada: install db-init scada-up ## Complete setup with SCADA
-	@echo "SCADA setup complete! Run 'make scada-logs' to view logs." 
+	@echo "SCADA setup complete! Run 'make scada-logs' to view logs."
+
+test-timescaledb: ## Test TimescaleDB installation and functionality
+	python scripts/test_timescaledb.py 
 
 up:
 	docker network inspect zxnet >/dev/null 2>&1 || docker network create zxnet

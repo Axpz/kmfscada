@@ -1,4 +1,6 @@
 import asyncio
+import signal
+import sys
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from contextlib import asynccontextmanager
@@ -44,6 +46,12 @@ async def lifespan(app: FastAPI):
     # Shutdown
     logger.info("Shutting down SCADA API application")
     await task_manager.stop_background_tasks()
+    
+    # Clean up WebSocket manager resources
+    from app.websocket.manager import websocket_manager
+    websocket_manager.cleanup_queue()
+    
+    logger.info("All resources cleaned up successfully")
 
 app = FastAPI(
     title=settings.PROJECT_NAME,

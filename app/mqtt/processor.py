@@ -1,3 +1,4 @@
+import os
 import time
 from multiprocessing import Process, Queue
 from typing import List
@@ -13,14 +14,22 @@ logger = get_logger("mqtt.processor")
 class MQTTProcessor:
     def __init__(self):
         self.workers: List[Process] = []
-        self.task_queue: Queue = Queue(maxsize=settings.MQTT_QUEUE_SIZE)
-        self.websocket_queue: Queue = WebSocketManager.broadcast_queue
+        self.task_queue: Queue = None
+        self.websocket_queue: Queue = None
         self.running = False
     
     def start_workers(self):
         """启动Worker进程"""
         print(f"🚀 启动 {settings.MQTT_WORKER_PROCESSES} 个Worker进程")
         logger.info(f"Starting {settings.MQTT_WORKER_PROCESSES} worker processes")
+        
+        # Initialize task queue if not already done
+        if self.task_queue is None:
+            self.task_queue = Queue(maxsize=settings.MQTT_QUEUE_SIZE)
+        
+        # Use websocket manager's queue
+        from app.websocket.manager import websocket_manager
+        self.websocket_queue = websocket_manager.broadcast_queue
         
         self.workers = []
         for i in range(settings.MQTT_WORKER_PROCESSES):
@@ -37,26 +46,65 @@ class MQTTProcessor:
         logger.info("Stopping worker processes")
         
         # 发送退出信号给所有Worker
-        for _ in self.workers:
-            try:
-                self.task_queue.put(None, timeout=1)  # 发送退出信号
-            except Exception as e:
-                logger.warning(f"Failed to send stop signal: {e}")
+        if self.task_queue is not None:
+            for _ in self.workers:
+                try:
+                    self.task_queue.put(None, timeout=1)  # 发送退出信号
+                except Exception as e:
+                    logger.warning(f"Failed to send stop signal: {e}")
         
         # 等待所有Worker进程结束
         for worker in self.workers:
             try:
-                worker.join(timeout=5)  # 等待最多5秒
+                worker.join(timeout=3)  # 减少等待时间到3秒
                 if worker.is_alive():
-                    logger.warning(f"Force terminating worker {worker.pid}")
+                    logger.warning(f"Worker {worker.pid} still alive, sending SIGTERM")
                     worker.terminate()
-                    worker.join()
+                    worker.join(timeout=2)  # 再等待2秒
+                    
+                    if worker.is_alive():
+                        logger.warning(f"Force killing worker {worker.pid}")
+                        try:
+                            import signal
+                            os.kill(worker.pid, signal.SIGKILL)
+                        except:
+                            pass
+                        worker.join()
+                        
                 logger.info(f"Worker process {worker.pid} stopped")
             except Exception as e:
                 logger.error(f"Error stopping worker {worker.pid}: {e}")
         
         self.workers.clear()
+        
+        # Properly close and clean up queues
+        self._cleanup_queues()
+        
         print("✅ 所有Worker进程已停止")
+    
+    def _cleanup_queues(self):
+        """Clean up multiprocessing queues to prevent semaphore leaks"""
+        try:
+            if self.task_queue is not None:
+                # Clear any remaining items in the queue
+                try:
+                    while not self.task_queue.empty():
+                        self.task_queue.get_nowait()
+                except:
+                    pass
+                
+                # Close and join the queue
+                self.task_queue.close()
+                self.task_queue.join_thread()
+                logger.info("Task queue cleaned up")
+                self.task_queue = None
+            
+            # Don't clean up websocket_queue here - it's managed by WebSocketManager
+            # Just set reference to None
+            self.websocket_queue = None
+                
+        except Exception as e:
+            logger.error(f"Error cleaning up queues: {e}")
     
     def start(self):
         """启动MQTT多进程处理系统"""
@@ -68,6 +116,10 @@ class MQTTProcessor:
         logger.info("Starting MQTT multiprocess system")
         
         try:
+            # Initialize WebSocket manager queue
+            from app.websocket.manager import websocket_manager
+            websocket_manager.initialize_queue()
+            
             # 启动Worker进程
             self.start_workers()
             
@@ -111,6 +163,10 @@ class MQTTProcessor:
             
             # 停止Worker进程
             self.stop_workers()
+            
+            # Clean up WebSocket manager queue
+            from app.websocket.manager import websocket_manager
+            websocket_manager.cleanup_queue()
             
             self.running = False
             print("✅ MQTT多进程处理系统已停止")

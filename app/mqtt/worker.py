@@ -140,6 +140,9 @@ def worker_process(task_queue: Queue, websocket_queue: Queue):
                     msg = task_queue.get(timeout=5)
                 except Empty:
                     continue
+                except KeyboardInterrupt:
+                    logger.info(f"🔚 Worker进程 {worker_id} 收到键盘中断信号")
+                    break
                 
                 # 检查退出信号
                 if msg is None:
@@ -150,12 +153,21 @@ def worker_process(task_queue: Queue, websocket_queue: Queue):
                     raw = json.loads(msg)
                     parsed = parse_mqtt_message(raw)
                     save_sensor_readings_batch(db, [parsed])
-                    dispatch(websocket_queue, parsed.copy(), raw)
+                    if websocket_queue is not None:
+                        dispatch(websocket_queue, parsed.copy(), raw)
                 except ValueError as e:
                     logger.error(f"⚠️ Worker {worker_id} 消息解析失败: {e}")
+            except KeyboardInterrupt:
+                logger.info(f"🔚 Worker进程 {worker_id} 收到键盘中断信号")
+                break
             except Exception as e:
                 logger.error(f"❌ Worker {worker_id} 处理消息时出错: {e}")
     
+    except KeyboardInterrupt:
+        logger.info(f"🔚 Worker进程 {worker_id} 被键盘中断")
     finally:
-        db.close()
+        try:
+            db.close()
+        except:
+            pass
         logger.info(f"🔚 Worker进程 {worker_id} 已停止")

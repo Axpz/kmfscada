@@ -9,13 +9,13 @@ from app.core.config import settings
 logger = get_logger(__name__)
 
 class WebSocketManager:
-    broadcast_queue = Queue(maxsize=settings.MQTT_QUEUE_SIZE)
-
     def __init__(self):
         # 存储活跃的WebSocket连接
         self.active_connections: List[WebSocket] = []
         # 存储连接的订阅信息
         self.connection_subscriptions: Dict[WebSocket, List[str]] = {}
+        # Initialize broadcast queue as instance variable
+        self.broadcast_queue: Queue = None
 
     async def connect(self, websocket: WebSocket, client_id: str = None):
         """接受WebSocket连接"""
@@ -131,6 +131,32 @@ class WebSocketManager:
             "active_connections": len(self.active_connections),
             "total_subscriptions": sum(len(subs) for subs in self.connection_subscriptions.values())
         }
+    
+    def initialize_queue(self):
+        """Initialize the broadcast queue"""
+        if self.broadcast_queue is None:
+            self.broadcast_queue = Queue(maxsize=settings.MQTT_QUEUE_SIZE)
+            logger.info("WebSocket broadcast queue initialized")
+    
+    def cleanup_queue(self):
+        """Clean up the broadcast queue to prevent semaphore leaks"""
+        try:
+            if self.broadcast_queue is not None:
+                # Clear any remaining items in the queue
+                try:
+                    while not self.broadcast_queue.empty():
+                        self.broadcast_queue.get_nowait()
+                except:
+                    pass
+                
+                # Close and join the queue
+                self.broadcast_queue.close()
+                self.broadcast_queue.join_thread()
+                logger.info("WebSocket broadcast queue cleaned up")
+                self.broadcast_queue = None
+                
+        except Exception as e:
+            logger.error(f"Error cleaning up WebSocket queue: {e}")
 
 # 全局WebSocket管理器实例
 websocket_manager = WebSocketManager()

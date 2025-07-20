@@ -13,13 +13,12 @@ from app.core.logging import (
     performance_logger
 )
 
-
 class LoggingMiddleware(BaseHTTPMiddleware):
     """日志中间件，记录请求信息、性能和安全事件"""
     
     def __init__(self, app: ASGIApp):
         super().__init__(app)
-        self.logger = get_logger("middleware")
+        self.logger = get_logger(__name__)
     
     async def dispatch(self, request: Request, call_next: Callable) -> Response:
         # 生成请求ID

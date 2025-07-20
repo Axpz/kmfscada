@@ -256,8 +256,9 @@ services:
       - ./volumes/db/jwt.sql:/docker-entrypoint-initdb.d/init-scripts/99-jwt.sql:Z
       # Initialize TimescaleDB core extension
       - ./volumes/db/init/timescaledb.sql:/docker-entrypoint-initdb.d/init-scripts/100-timescaledb.sql:Z
+      - ./volumes/db/init/privilege.sql:/docker-entrypoint-initdb.d/init-scripts/101-privilege.sql:Z
       # Initialize TimescaleDB business data examples
-      - ./volumes/db/init/ts_kmf.sql:/docker-entrypoint-initdb.d/init-scripts/101-ts_kmf.sql:Z
+      # - ./volumes/db/init/ts_kmf.sql:/docker-entrypoint-initdb.d/init-scripts/101-ts_kmf.sql:Z
       # PGDATA directory is persisted between restarts
       - db-data:/var/lib/postgresql/data:Z
       # Changes required for internal supabase data such as _analytics

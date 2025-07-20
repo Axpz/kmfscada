@@ -1,4 +1,4 @@
-docker exec -it scada-db psql -U postgres -d scada
+docker exec -it supabase-db psql -U postgres -d scada
 
 \pset pager off
 
@@ -17,6 +17,31 @@ UPDATE auth.users SET raw_user_meta_data = jsonb_set(
 
 UPDATE auth.users SET raw_user_meta_data = raw_user_meta_data - 'is_super_admin' WHERE raw_user_meta_data ? 'is_super_admin';
 
-UPDATE auth.users
-SET raw_user_meta_data = '{"role": "super_admin"}'::jsonb
-WHERE is_super_admin = true;
+UPDATE auth.users SET raw_user_meta_data = raw_user_meta_data || '{"role": "super_admin"}'::jsonb
+UPDATE auth.users SET raw_user_meta_data = raw_user_meta_data || '{"role": "admin"}'::jsonb
+
+
+# display all functions
+\df
+
+# display all tables
+\dt
+
+# display all schemas
+\dn
+
+
+CREATE EXTENSION IF NOT EXISTS timescaledb;
+SELECT * FROM pg_extension WHERE extname = 'timescaledb';
+
+CREATE SCHEMA IF NOT EXISTS timeseries;
+SELECT schema_name FROM information_schema.schemata WHERE schema_name = 'timeseries';
+
+
+
+SELECT create_hypertable('public.sensor_readings', 'timestamp', if_not_exists => TRUE, migrate_data => TRUE);
+SELECT set_chunk_time_interval('public.sensor_readings', INTERVAL '1 day');
+
+SELECT * FROM timescaledb_information.hypertables;
+SELECT * FROM timescaledb_information.dimensions;
+SELECT * FROM timescaledb_information.chunks;

@@ -21,13 +21,13 @@ from app.core.logging import (
     log_api_request
 )
 
+logger = get_logger(__name__)
+
 
 def test_basic_logging():
     """测试基本日志功能"""
     print("=== 测试基本日志功能 ===")
-    
-    logger = get_logger("test")
-    
+        
     logger.debug("这是一条调试信息")
     logger.info("这是一条信息日志")
     logger.warning("这是一条警告信息")
@@ -143,9 +143,7 @@ def test_api_logging():
 def test_error_logging():
     """测试错误日志"""
     print("\n=== 测试错误日志 ===")
-    
-    logger = get_logger("test_error")
-    
+        
     try:
         # 模拟一个异常
         result = 1 / 0

@@ -23,3 +23,13 @@ def get_db():
         yield db
     finally:
         db.close() 
+
+
+def with_db(func):
+    def wrapper(*args, **kwargs):
+        db = SessionLocal()
+        try:
+            return func(db, *args, **kwargs)
+        finally:
+            db.close()
+    return wrapper

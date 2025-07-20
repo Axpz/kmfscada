@@ -1,0 +1,2 @@
+GRANT CREATE ON SCHEMA public TO postgres;
+GRANT CREATE ON DATABASE scada TO postgres;

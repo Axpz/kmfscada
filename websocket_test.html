@@ -1,0 +1,243 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SCADA WebSocket 测试</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            margin-bottom: 20px;
+        }
+        .status {
+            padding: 10px;
+            border-radius: 4px;
+            margin-bottom: 10px;
+        }
+        .connected { background-color: #d4edda; color: #155724; }
+        .disconnected { background-color: #f8d7da; color: #721c24; }
+        .message {
+            background-color: #f8f9fa;
+            border: 1px solid #dee2e6;
+            padding: 10px;
+            margin: 5px 0;
+            border-radius: 4px;
+            font-family: monospace;
+            font-size: 12px;
+        }
+        .sensor-data { border-left: 4px solid #007bff; }
+        .system-status { border-left: 4px solid #28a745; }
+        .alarm { border-left: 4px solid #dc3545; }
+        .mqtt-message { border-left: 4px solid #ffc107; }
+        button {
+            background-color: #007bff;
+            color: white;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 4px;
+            cursor: pointer;
+            margin: 5px;
+        }
+        button:hover { background-color: #0056b3; }
+        button:disabled { background-color: #6c757d; cursor: not-allowed; }
+        input, select {
+            padding: 8px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            margin: 5px;
+        }
+        .controls {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+        #messages {
+            max-height: 400px;
+            overflow-y: auto;
+            border: 1px solid #ddd;
+            padding: 10px;
+            background-color: #f8f9fa;
+        }
+    </style>
+</head>
+<body>
+    <h1>🏭 SCADA WebSocket 实时监控</h1>
+    
+    <div class="container">
+        <h2>连接控制</h2>
+        <div class="controls">
+            <input type="text" id="clientId" placeholder="客户端ID (可选)" value="test_client">
+            <select id="channels" multiple>
+                <option value="sensor_data">传感器数据</option>
+                <option value="system_status">系统状态</option>
+                <option value="alarms">告警信息</option>
+                <option value="mqtt">MQTT消息</option>
+            </select>
+            <button id="connectBtn" onclick="connect()">连接</button>
+            <button id="disconnectBtn" onclick="disconnect()" disabled>断开</button>
+            <button onclick="clearMessages()">清空消息</button>
+        </div>
+        <div id="status" class="status disconnected">未连接</div>
+    </div>
+
+    <div class="container">
+        <h2>测试功能</h2>
+        <div class="controls">
+            <button onclick="sendPing()">发送心跳</button>
+            <button onclick="getStatus()">获取状态</button>
+            <button onclick="subscribeChannels()">更新订阅</button>
+        </div>
+    </div>
+
+    <div class="container">
+        <h2>实时消息 <span id="messageCount">(0)</span></h2>
+        <div id="messages"></div>
+    </div>
+
+    <script>
+        let ws = null;
+        let messageCount = 0;
+
+        function connect() {
+            const clientId = document.getElementById('clientId').value;
+            const channelSelect = document.getElementById('channels');
+            const selectedChannels = Array.from(channelSelect.selectedOptions).map(option => option.value);
+            
+            let wsUrl = 'ws://localhost:8080/api/v1/ws';
+            const params = new URLSearchParams();
+            
+            if (clientId) params.append('client_id', clientId);
+            if (selectedChannels.length > 0) params.append('channels', selectedChannels.join(','));
+            
+            if (params.toString()) {
+                wsUrl += '?' + params.toString();
+            }
+
+            ws = new WebSocket(wsUrl);
+
+            ws.onopen = function(event) {
+                updateStatus('已连接', 'connected');
+                document.getElementById('connectBtn').disabled = true;
+                document.getElementById('disconnectBtn').disabled = false;
+                addMessage('connection', '✅ WebSocket连接已建立');
+            };
+
+            ws.onmessage = function(event) {
+                const data = JSON.parse(event.data);
+                console.log(data);
+                if (data.type) {
+                    addMessage(data.type, JSON.stringify(data, null, 2));
+                } else {
+                    addMessage('unknown', JSON.stringify(data, null, 2));
+                }
+            };
+
+            ws.onclose = function(event) {
+                updateStatus('连接已关闭', 'disconnected');
+                document.getElementById('connectBtn').disabled = false;
+                document.getElementById('disconnectBtn').disabled = true;
+                addMessage('connection', '❌ WebSocket连接已关闭');
+            };
+
+            ws.onerror = function(error) {
+                updateStatus('连接错误', 'disconnected');
+                addMessage('error', '❌ WebSocket连接错误: ' + error);
+            };
+        }
+
+        function disconnect() {
+            if (ws) {
+                ws.close();
+                ws = null;
+            }
+        }
+
+        function updateStatus(message, className) {
+            const statusDiv = document.getElementById('status');
+            statusDiv.textContent = message;
+            statusDiv.className = 'status ' + className;
+        }
+
+        function addMessage(type, content) {
+            const messagesDiv = document.getElementById('messages');
+            const messageDiv = document.createElement('div');
+            
+            const timestamp = new Date().toLocaleTimeString();
+            messageDiv.className = 'message ' + type.replace('_', '-');
+            messageDiv.innerHTML = `<strong>[${timestamp}] ${type.toUpperCase()}:</strong><br>${content}`;
+            
+            messagesDiv.appendChild(messageDiv);
+            messagesDiv.scrollTop = messagesDiv.scrollHeight;
+            
+            messageCount++;
+            document.getElementById('messageCount').textContent = `(${messageCount})`;
+        }
+
+        function clearMessages() {
+            document.getElementById('messages').innerHTML = '';
+            messageCount = 0;
+            document.getElementById('messageCount').textContent = '(0)';
+        }
+
+        function sendPing() {
+            if (ws && ws.readyState === WebSocket.OPEN) {
+                const message = {
+                    type: 'ping',
+                    timestamp: new Date().toISOString()
+                };
+                ws.send(JSON.stringify(message));
+                addMessage('sent', '📤 发送心跳: ' + JSON.stringify(message));
+            } else {
+                alert('WebSocket未连接');
+            }
+        }
+
+        function getStatus() {
+            if (ws && ws.readyState === WebSocket.OPEN) {
+                const message = {
+                    type: 'get_status'
+                };
+                ws.send(JSON.stringify(message));
+                addMessage('sent', '📤 请求系统状态');
+            } else {
+                alert('WebSocket未连接');
+            }
+        }
+
+        function subscribeChannels() {
+            if (ws && ws.readyState === WebSocket.OPEN) {
+                const channelSelect = document.getElementById('channels');
+                const selectedChannels = Array.from(channelSelect.selectedOptions).map(option => option.value);
+                
+                const message = {
+                    type: 'subscribe',
+                    channels: selectedChannels
+                };
+                ws.send(JSON.stringify(message));
+                addMessage('sent', '📤 更新订阅: ' + JSON.stringify(selectedChannels));
+            } else {
+                alert('WebSocket未连接');
+            }
+        }
+
+        // 页面加载时自动选择所有频道
+        window.onload = function() {
+            const channelSelect = document.getElementById('channels');
+            for (let option of channelSelect.options) {
+                option.selected = true;
+            }
+        };
+    </script>
+</body>
+</html>

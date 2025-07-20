@@ -10,9 +10,6 @@ check: ## Check Python version (3.12+)
 install: check ## Install dependencies
 	pip install -r requirements.txt
 
-dev: ## Run development server
-	uvicorn main:app --reload --host 0.0.0.0 --port 8000
-
 lint: ## Run linting
 	flake8 app
 	mypy app
@@ -56,9 +53,6 @@ docker-compose-down: ## Stop services with Docker Compose
 scada-up: ## Start SCADA services
 	docker-compose -f docker-compose.scada.yml up
 
-scada-down: ## Stop SCADA services
-	docker-compose -f docker-compose.scada.yml down
-
 scada-logs: ## View SCADA logs
 	docker-compose -f docker-compose.scada.yml logs -f
 
@@ -68,8 +62,11 @@ setup: install db-init ## Complete setup (install + init db)
 setup-scada: install db-init scada-up ## Complete setup with SCADA
 	@echo "SCADA setup complete! Run 'make scada-logs' to view logs."
 
-test-timescaledb: ## Test TimescaleDB installation and functionality
-	python scripts/test_timescaledb.py 
+test-sensor-crud: ## Test sensor data CRUD operations
+	PYTHONPATH=./ python scripts/test_sensor_crud.py
+
+test-sensor-data: ## Test sensor data insertion (runs continuously)
+	PYTHONPATH=./ python scripts/test_sensor_data.py
 
 up:
 	docker network inspect zxnet >/dev/null 2>&1 || docker network create zxnet

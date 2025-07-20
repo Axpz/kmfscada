@@ -44,7 +44,7 @@ class Settings(BaseSettings):
     
     # API
     API_V1_STR: str = "/api/v1"
-    PROJECT_NAME: str = "SCADA System"
+    PROJECT_NAME: str = "KMF SCADA"
     VERSION: str = "1.0.0"
     
     # Security
@@ -56,6 +56,19 @@ class Settings(BaseSettings):
     
     # Logging
     LOG_LEVEL: str = "INFO"
+    
+    # MQTT Configuration
+    MQTT_BROKER_HOST: str = "localhost"
+    MQTT_BROKER_PORT: int = 1883
+    MQTT_USERNAME: Optional[str] = None
+    MQTT_PASSWORD: Optional[str] = None
+    MQTT_CLIENT_ID: str = "kmf_scada_client"
+    MQTT_WORKER_PROCESSES: int = 2
+    MQTT_QUEUE_SIZE: int = 200
+    MQTT_BATCH_SIZE: int = 10
+    
+    # WebSocket Configuration
+    WEBSOCKET_BROADCAST_QUEUE_SIZE: int = 50
     
     class Config:
         env_file = ".env"

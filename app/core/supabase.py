@@ -124,12 +124,7 @@ class SupabaseAuthService:
                     }
                 )
                 
-                if response.status_code == 200:
-                    logger.info(f"User created successfully: {email}")
-                    return response.json()
-                else:
-                    logger.error(f"Failed to create user {email}: {response.status_code} - {response.text}")
-                    return None
+                return response.json()
         except Exception as e:
             logger.error(f"Error creating user {email}: {e}")
             return None
@@ -138,7 +133,7 @@ class SupabaseAuthService:
         """Update user information in Supabase."""
         try:
             async with httpx.AsyncClient(timeout=10.0) as client:
-                response = await client.put(
+                return await client.put(
                     f"{self.auth_url}/admin/users/{user_id}",
                     headers={
                         "Authorization": f"Bearer {settings.SERVICE_ROLE_KEY}",
@@ -147,13 +142,6 @@ class SupabaseAuthService:
                     },
                     json=updates
                 )
-                
-                if response.status_code == 200:
-                    logger.info(f"User {user_id} updated successfully")
-                    return response.json()
-                else:
-                    logger.error(f"Failed to update user {user_id}: {response.status_code}")
-                    return None
         except Exception as e:
             logger.error(f"Error updating user {user_id}: {e}")
             return None
@@ -162,20 +150,13 @@ class SupabaseAuthService:
         """Delete a user from Supabase."""
         try:
             async with httpx.AsyncClient(timeout=10.0) as client:
-                response = await client.delete(
+                return await client.delete(
                     f"{self.auth_url}/admin/users/{user_id}",
                     headers={
                         "Authorization": f"Bearer {settings.SERVICE_ROLE_KEY}",
                         "apikey": settings.SERVICE_ROLE_KEY
                     }
                 )
-                
-                if response.status_code == 200:
-                    logger.info(f"User {user_id} deleted successfully")
-                    return True
-                else:
-                    logger.error(f"Failed to delete user {user_id}: {response.status_code}")
-                    return False
         except Exception as e:
             logger.error(f"Error deleting user {user_id}: {e}")
             return False
@@ -184,7 +165,7 @@ class SupabaseAuthService:
         """List users from Supabase."""
         try:
             async with httpx.AsyncClient(timeout=10.0) as client:
-                response = await client.get(
+                return await client.get(
                     f"{self.auth_url}/admin/users",
                     headers={
                         "Authorization": f"Bearer {settings.SERVICE_ROLE_KEY}",
@@ -192,12 +173,6 @@ class SupabaseAuthService:
                     },
                     params={"page": page, "per_page": per_page}
                 )
-                
-                if response.status_code == 200:
-                    return response.json()
-                else:
-                    logger.error(f"Failed to list users: {response.status_code}")
-                    return None
         except Exception as e:
             logger.error(f"Error listing users: {e}")
             return None
@@ -213,7 +188,7 @@ class SupabaseAuthService:
         """Sign in user with email and password."""
         try:
             async with httpx.AsyncClient(timeout=10.0) as client:
-                response = await client.post(
+                return await client.post(
                     f"{self.auth_url}/token?grant_type=password",
                     headers={
                         "apikey": settings.ANON_KEY,
@@ -224,13 +199,6 @@ class SupabaseAuthService:
                         "password": password
                     }
                 )
-                
-                if response.status_code == 200:
-                    logger.info(f"User {email} signed in successfully")
-                    return response.json()
-                else:
-                    logger.error(f"Failed to sign in user {email}: {response.status_code}")
-                    return None
         except Exception as e:
             logger.error(f"Error signing in user {email}: {e}")
             return None
@@ -239,7 +207,7 @@ class SupabaseAuthService:
         """Refresh access token using refresh token."""
         try:
             async with httpx.AsyncClient(timeout=10.0) as client:
-                response = await client.post(
+                return await client.post(
                     f"{self.auth_url}/token?grant_type=refresh_token",
                     headers={
                         "apikey": settings.ANON_KEY,
@@ -249,38 +217,39 @@ class SupabaseAuthService:
                         "refresh_token": refresh_token
                     }
                 )
-                
-                if response.status_code == 200:
-                    logger.info("Token refreshed successfully")
-                    return response.json()
-                else:
-                    logger.error(f"Failed to refresh token: {response.status_code}")
-                    return None
         except Exception as e:
             logger.error(f"Error refreshing token: {e}")
             return None
     
-    async def sign_out_user(self, access_token: str) -> bool:
-        """Sign out user by invalidating their session."""
+    async def get_session(self, access_token: str) -> Optional[Dict[str, Any]]:
+        """Get current session information."""
         try:
             async with httpx.AsyncClient(timeout=10.0) as client:
-                response = await client.post(
-                    f"{self.auth_url}/logout",
+                return await client.get(
+                    f"{self.auth_url}/user",
                     headers={
                         "apikey": settings.ANON_KEY,
                         "Authorization": f"Bearer {access_token}"
                     }
                 )
-                
-                if response.status_code == 200:
-                    logger.info("User signed out successfully")
-                    return True
-                else:
-                    logger.error(f"Failed to sign out user: {response.status_code}")
-                    return False
         except Exception as e:
-            logger.error(f"Error signing out user: {e}")
-            return False
+            logger.debug(f"Error getting session: {e}")
+            return None
+
+    async def sign_out_user(self, access_token: str) -> Dict[str, Any]:
+        """Sign out user: if session exists, call Supabase logout; if not, fallback to local logout."""
+        async with httpx.AsyncClient(timeout=10.0) as client:
+            response = await client.post(
+                    f"{self.auth_url}/logout",
+                    headers={
+                        "apikey": settings.ANON_KEY,
+                        "Authorization": f"Bearer {access_token}",
+                        "Content-Type": "application/json"
+                    }
+                )
+
+            return response.json()
+
 
 
 # Global instance

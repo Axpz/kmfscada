@@ -1,0 +1,12 @@
+{
+    "include": [
+        "app",
+        "main.py"
+    ],
+    "exclude": [
+        "**/__pycache__"
+    ],
+    "pythonVersion": "3.12",
+    "venvPath": "/Users/ax",
+    "venv": "venv"
+}

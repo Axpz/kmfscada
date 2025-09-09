@@ -13,6 +13,12 @@ logger = logging.getLogger(__name__)
 
 router = APIRouter()
 
+@router.get("/")
+async def get_users(
+    current_user: Dict[str, Any] = Depends(deps.get_current_active_superuser)
+) -> Dict[str, Any]:
+    """Get all users (admin only)"""
+    return await supabase_auth.list_users()
 
 @router.post("/", status_code=status.HTTP_201_CREATED)
 async def create_user(

@@ -36,7 +36,10 @@ async def verify_token(
 @router.post("/signin")
 async def signin_user(user_data: UserSigninValidator) -> Dict[str, Any]:
     """Sign in user with email and password"""
-    return await supabase_auth.sign_in_user(user_data.email, user_data.password)
+    logger.info(f"Signing in user: {user_data}")
+    resp = await supabase_auth.sign_in_user(user_data.email, user_data.password)
+    logger.info(f"Sign in response: {resp}")
+    return resp.json()
 
 
 @router.post("/refresh")

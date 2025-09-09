@@ -1,0 +1,71 @@
+services:
+  rabbitmq:
+    image: rabbitmq:4.1-management
+    container_name: kmf-rabbitmq
+    hostname: kmf-rabbitmq
+    restart: unless-stopped
+    ports:
+      # AMQP 协议端口
+      - "5672:5672"
+      # 管理界面端口
+      - "15672:15672"
+      # MQTT 插件端口
+      - "1883:1883"
+      # MQTT over WebSockets 端口
+      # - "15675:15675"
+    environment:
+      # 启用 MQTT 插件
+      RABBITMQ_ENABLED_PLUGINS_FILE: /etc/rabbitmq/enabled_plugins
+      RABBITMQ_LOAD_DEFINITIONS: /etc/rabbitmq/definitions.json
+    volumes:
+      # 数据持久化
+      - rabbitmq_data:/var/lib/rabbitmq
+      # 日志持久化
+      - rabbitmq_logs:/var/log/rabbitmq
+      # RabbitMQ 定义文件
+      - ./volumes/rabbitmq/definitions.json:/etc/rabbitmq/definitions.json:ro
+    networks:
+      - zxnet
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "ping"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 40s
+    command: >
+      sh -c "
+        mkdir -p /etc/rabbitmq &&
+        echo '[rabbitmq_management,rabbitmq_mqtt].' > /etc/rabbitmq/enabled_plugins &&
+        rabbitmq-server
+      "
+
+  # MQTT SSL代理服务
+  mqtt-ssl-proxy:
+    image: nginx:alpine
+    container_name: mqtt-ssl-proxy
+    restart: unless-stopped
+    ports:
+      - "8883:8883"
+    volumes:
+      - ./volumes/api/ssl:/etc/nginx/ssl:ro
+      - ./volumes/rabbitmq/nginx/mqtt-ssl.conf:/etc/nginx/nginx.conf:ro
+    networks:
+      - zxnet
+    depends_on:
+      - rabbitmq
+    healthcheck:
+      test: ["CMD", "nc", "-z", "localhost", "8883"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+volumes:
+  rabbitmq_data:
+    driver: local
+  rabbitmq_logs:
+    driver: local
+
+networks:
+  zxnet:
+    external: true
+

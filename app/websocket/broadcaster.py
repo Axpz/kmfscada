@@ -26,14 +26,15 @@ async def websocket_broadcast_loop():
         while True:
             # 交给线程池去执行 blocking 的 get
             msg = await asyncio.get_event_loop().run_in_executor(executor, blocking_get_message)
-            logger.info(f"Broadcasting ++++++++ message: {msg}")
-
             if msg is None:
-                logger.info("Queue is empty")
+                logger.info(f"Queue is empty: {msg}")
+                await asyncio.sleep(2)
                 continue
 
+            logger.info(f"--------------------------------: {msg}")
+
             try:
-                await websocket_manager.broadcast(message=msg, channel="all")
+                await websocket_manager.send_message('production_data', msg)
             except Exception as e:
                 logger.error(f"WebSocket 广播失败: {e}")
     except asyncio.CancelledError:

@@ -9,7 +9,7 @@ logger = get_logger(__name__)
 
 def init() -> None:
     create_extensions()
-    create_hypertable("sensor_readings")
+    create_hypertable("sensor_data")
 
 
 def create_extensions() -> None:

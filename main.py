@@ -10,8 +10,9 @@ from app.core.database import engine, Base
 from app.core.logging import init_logging, get_logger
 from app.middleware import LoggingMiddleware
 from app.api.v1.api import api_router
-from app.mqtt.background_tasks import task_manager
+from app.mqtt.manager import mqtt_manager
 from app.websocket.broadcaster import websocket_broadcast_loop
+from app.mqtt.background_tasks import task_manager
 
 # Import all models to register them with Base and get init_database function
 from app.db.base import *
@@ -34,8 +35,10 @@ async def lifespan(app: FastAPI):
         raise RuntimeError("Database initialization failed")
     
     # 启动后台任务（包含MQTT多进程系统和传感器数据生成）
-    await task_manager.start_background_tasks()
-    logger.info("Background tasks started")
+    mqtt_manager.start_system()
+    # logger.info("MQTT multiprocess system started")
+    # await task_manager.start_background_tasks()
+    # logger.info("Background tasks started")
     
     # 启动WebSocket广播监听器
     asyncio.create_task(websocket_broadcast_loop())
@@ -45,8 +48,9 @@ async def lifespan(app: FastAPI):
     
     # Shutdown
     logger.info("Shutting down SCADA API application")
-    await task_manager.stop_background_tasks()
-    
+    mqtt_manager.stop_system()
+    # await task_manager.stop_background_tasks()
+    # logger.info("Background tasks stopped")
     # Clean up WebSocket manager resources
     from app.websocket.manager import websocket_manager
     websocket_manager.cleanup_queue()

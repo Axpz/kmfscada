@@ -1,47 +1,44 @@
 import os
 import time
-from multiprocessing import Process, Queue
+import multiprocessing
+from multiprocessing import Process, Queue, Event
+import threading
 from typing import List
 from app.core.config import settings
 from app.core.logging import get_logger
 from app.mqtt.worker import worker_process
 from app.mqtt.client import mqtt_client
+from app.mqtt.sensor_configs import generate_multiple_sensor_data_records
+from app.websocket.manager import websocket_manager
 
-from app.websocket.manager import WebSocketManager
+logger = get_logger("mqtt.manager")
 
-logger = get_logger("mqtt.processor")
-
-class MQTTProcessor:
+class MQTTManager:
+    """MQTT系统管理器，负责协调MQTT客户端、Worker进程和WebSocket广播"""
+    
     def __init__(self):
         self.workers: List[Process] = []
-        self.task_queue: Queue = None
-        self.websocket_queue: Queue = None
+        self.task_queue = Queue(maxsize=settings.MQTT_QUEUE_SIZE)
+        self.websocket_queue = websocket_manager.broadcast_queue
+        self.stop_event = Event()
         self.running = False
     
-    def start_workers(self):
-        """启动Worker进程"""
+    def start_worker_pool(self):
+        """启动Worker进程池"""
         print(f"🚀 启动 {settings.MQTT_WORKER_PROCESSES} 个Worker进程")
         logger.info(f"Starting {settings.MQTT_WORKER_PROCESSES} worker processes")
         
-        # Initialize task queue if not already done
-        if self.task_queue is None:
-            self.task_queue = Queue(maxsize=settings.MQTT_QUEUE_SIZE)
-        
-        # Use websocket manager's queue
-        from app.websocket.manager import websocket_manager
-        self.websocket_queue = websocket_manager.broadcast_queue
-        
         self.workers = []
         for i in range(settings.MQTT_WORKER_PROCESSES):
-            worker = Process(target=worker_process, args=(self.task_queue, self.websocket_queue))
+            worker = Process(target=worker_process, args=(self.task_queue, self.websocket_queue, self.stop_event))
             worker.start()
             self.workers.append(worker)
             logger.info(f"Started worker process {i} with pid {worker.pid}")
         
         return self.workers
     
-    def stop_workers(self):
-        """停止Worker进程"""
+    def stop_worker_pool(self):
+        """停止Worker进程池"""
         print("🔚 停止Worker进程...")
         logger.info("Stopping worker processes")
         
@@ -106,50 +103,42 @@ class MQTTProcessor:
         except Exception as e:
             logger.error(f"Error cleaning up queues: {e}")
     
-    def start(self):
+    def start_system(self):
         """启动MQTT多进程处理系统"""
         if self.running:
-            logger.warning("MQTT processor already running")
+            logger.warning("MQTT manager already running")
             return
         
         print("🎯 启动MQTT多进程处理系统")
         logger.info("Starting MQTT multiprocess system")
         
         try:
-            # Initialize WebSocket manager queue
-            from app.websocket.manager import websocket_manager
-            websocket_manager.initialize_queue()
-            
-            # 启动Worker进程
-            self.start_workers()
+            # 启动Worker进程池
+            self.start_worker_pool()
             
             # 设置MQTT客户端的任务队列
             mqtt_client.set_task_queue(self.task_queue)
             
             # 连接MQTT客户端
-            mqtt_client.connect()
-            
-            # 等待连接建立
-            retry_count = 0
-            while not mqtt_client.connected and retry_count < 10:
-                time.sleep(1)
-                retry_count += 1
-            
-            if mqtt_client.connected:
-                self.running = True
-                print("✅ MQTT多进程处理系统启动成功")
-                logger.info("MQTT multiprocess system started successfully")
-            else:
-                print("❌ MQTT连接失败")
-                logger.error("Failed to connect to MQTT broker")
-                self.stop_workers()
+            mqtt_thread = threading.Thread(target=mqtt_client.run, daemon=True)
+            mqtt_thread.start()
+
+            self.running = True
+
+            logger.info("MQTT multiprocess system started successfully (waiting for connection)")
                 
+        except KeyboardInterrupt:
+            logger.info("用户手动中断，退出程序。")
+            mqtt_client.disconnect()
+            self.stop_worker_pool()
+
         except Exception as e:
-            logger.error(f"Failed to start MQTT processor: {e}")
-            self.stop_workers()
+            logger.error(f"Failed to start MQTT manager: {e}")
+            mqtt_client.disconnect()
+            self.stop_worker_pool()
             raise
     
-    def stop(self):
+    def stop_system(self):
         """停止MQTT多进程处理系统"""
         if not self.running:
             return
@@ -161,8 +150,8 @@ class MQTTProcessor:
             # 断开MQTT连接
             mqtt_client.disconnect()
             
-            # 停止Worker进程
-            self.stop_workers()
+            # 停止Worker进程池
+            self.stop_worker_pool()
             
             # Clean up WebSocket manager queue
             from app.websocket.manager import websocket_manager
@@ -173,18 +162,7 @@ class MQTTProcessor:
             logger.info("MQTT multiprocess system stopped")
             
         except Exception as e:
-            logger.error(f"Error stopping MQTT processor: {e}")
+            logger.error(f"Error stopping MQTT manager: {e}")
 
-    def get_status(self):
-        """获取系统状态"""
-        alive_workers = sum(1 for w in self.workers if w.is_alive())
-        return {
-            "running": self.running,
-            "mqtt_connected": mqtt_client.connected,
-            "total_workers": len(self.workers),
-            "alive_workers": alive_workers,
-            "queue_size": self.task_queue.qsize() if hasattr(self.task_queue, 'qsize') else 0
-        }
-
-# 全局MQTT处理器实例
-mqtt_processor = MQTTProcessor()
+# 全局MQTT管理器实例
+mqtt_manager = MQTTManager()

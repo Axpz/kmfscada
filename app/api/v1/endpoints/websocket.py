@@ -15,6 +15,7 @@ async def websocket_endpoint(
     channels: Optional[str] = Query(None, description="订阅频道，逗号分隔")
 ):
     """WebSocket连接端点"""
+    logger.info(f"WebSocket connected: {client_id}")
     await websocket_manager.connect(websocket, client_id)
     
     # 处理频道订阅

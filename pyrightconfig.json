@@ -8,5 +8,6 @@
     ],
     "pythonVersion": "3.12",
     "venvPath": "/Users/ax",
-    "venv": "venv"
+    "venv": "venv",
+    "typeCheckingMode": "off"
 }

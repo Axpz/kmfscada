@@ -133,7 +133,7 @@ class SupabaseAuthService:
         """Update user information in Supabase."""
         try:
             async with httpx.AsyncClient(timeout=10.0) as client:
-                return await client.put(
+                resp = await client.put(
                     f"{self.auth_url}/admin/users/{user_id}",
                     headers={
                         "Authorization": f"Bearer {settings.SERVICE_ROLE_KEY}",
@@ -142,6 +142,7 @@ class SupabaseAuthService:
                     },
                     json=updates
                 )
+                return resp.json()
         except Exception as e:
             logger.error(f"Error updating user {user_id}: {e}")
             return None
@@ -165,7 +166,7 @@ class SupabaseAuthService:
         """List users from Supabase."""
         try:
             async with httpx.AsyncClient(timeout=10.0) as client:
-                return await client.get(
+                resp = await client.get(
                     f"{self.auth_url}/admin/users",
                     headers={
                         "Authorization": f"Bearer {settings.SERVICE_ROLE_KEY}",
@@ -173,6 +174,7 @@ class SupabaseAuthService:
                     },
                     params={"page": page, "per_page": per_page}
                 )
+                return resp.json()
         except Exception as e:
             logger.error(f"Error listing users: {e}")
             return None
@@ -207,7 +209,7 @@ class SupabaseAuthService:
         """Refresh access token using refresh token."""
         try:
             async with httpx.AsyncClient(timeout=10.0) as client:
-                return await client.post(
+                resp = await client.post(
                     f"{self.auth_url}/token?grant_type=refresh_token",
                     headers={
                         "apikey": settings.ANON_KEY,
@@ -217,6 +219,7 @@ class SupabaseAuthService:
                         "refresh_token": refresh_token
                     }
                 )
+                return resp.json()
         except Exception as e:
             logger.error(f"Error refreshing token: {e}")
             return None

@@ -1,0 +1,82 @@
+{
+  "vhosts": [
+    { "name": "/" }
+  ],
+  "users": [
+    {
+      "name": "admin",
+      "password_hash": "yphJXotoGBWF4RvmPoPTtZTzwySqVkLopEhhomt1S5U7067X", 
+      "hashing_algorithm": "rabbit_password_hashing_sha256",
+      "tags": "administrator"
+    }
+  ],
+  "permissions": [
+    {
+      "user": "admin",
+      "vhost": "/",
+      "configure": ".*",
+      "write": ".*",
+      "read": ".*"
+    }
+  ],
+  "exchanges": [
+    {
+      "name": "exchange.south",
+      "vhost": "/",
+      "type": "topic",
+      "durable": true,
+      "auto_delete": false,
+      "internal": false,
+      "arguments": {}
+    },
+    {
+      "name": "exchange.north",
+      "vhost": "/",
+      "type": "topic",
+      "durable": true,
+      "auto_delete": false,
+      "internal": false,
+      "arguments": {}
+    }
+  ],
+  "queues": [
+    { "name": "queue.south.ingress", "vhost": "/", "durable": true, "auto_delete": false, "arguments": {} },
+    { "name": "queue.south.egress", "vhost": "/", "durable": true, "auto_delete": false, "arguments": {} },
+    { "name": "queue.north.sub", "vhost": "/", "durable": true, "auto_delete": false, "arguments": {} },
+    { "name": "queue.north.pub", "vhost": "/", "durable": true, "auto_delete": false, "arguments": {} }
+  ],
+  "bindings": [
+    {
+      "source": "exchange.south",
+      "vhost": "/",
+      "destination": "queue.south.ingress",
+      "destination_type": "queue",
+      "routing_key": "plc.ingress.#",
+      "arguments": {}
+    },
+    {
+      "source": "exchange.south",
+      "vhost": "/",
+      "destination": "queue.south.egress",
+      "destination_type": "queue",
+      "routing_key": "plc.egress.#",
+      "arguments": {}
+    },
+    {
+      "source": "exchange.north",
+      "vhost": "/",
+      "destination": "queue.north.sub",
+      "destination_type": "queue",
+      "routing_key": "frontend.sub.#",
+      "arguments": {}
+    },
+    {
+      "source": "exchange.north",
+      "vhost": "/",
+      "destination": "queue.north.pub",
+      "destination_type": "queue",
+      "routing_key": "frontend.pub.#",
+      "arguments": {}
+    }
+  ]
+}

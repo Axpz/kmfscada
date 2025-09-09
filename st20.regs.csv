@@ -1,0 +1,6 @@
+device,modbus_device,1,,
+poll,holding_register,5000,2,BE_BE
+ref,production_batch,5000,uint32,rw
+
+poll,holding_register,5004,1,BE_BE
+ref,current_diameter,5004,uint16,rw,scale=0.001  # 转成 mm

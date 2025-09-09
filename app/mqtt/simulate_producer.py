@@ -1,13 +1,14 @@
 import asyncio
+import random
 from datetime import datetime, timezone
 from typing import List, Dict, Any
 from sqlalchemy.orm import Session
 
 from app.core.database import SessionLocal
 from app.core.logging import get_logger
-from app.models.sensor import SensorReading
+from app.models.sensor import SensorData
 from app.mqtt.publisher import publish_sensor_data
-from app.mqtt.sensor_configs import SENSOR_CONFIGS, generate_sensor_value, get_sensor_status
+from app.mqtt.sensor_configs import SENSOR_CONFIGS, generate_sensor_data_for_db, generate_multiple_sensor_data_records
 
 logger = get_logger(__name__)
 
@@ -17,77 +18,55 @@ class SensorDataProducer:
     
     def generate_sensor_reading(self, sensor_id: str, config: Dict[str, Any]) -> Dict[str, Any]:
         """生成单个传感器读数"""
-        # 生成数值
-        value = generate_sensor_value(sensor_id, config)
+        # 使用新的数据库兼容的数据生成函数
+        line_id = f"line_{random.randint(1, 3):03d}"
+        component_id = random.choice(["extruder", "cooler", "winder", "cutter"])
         
-        # 获取状态
-        status = get_sensor_status(value, config)
-        
-        # 创建传感器读数数据
-        reading_data = {
-            "sensor_id": sensor_id,
-            "timestamp": datetime.now(timezone.utc),
-            "value": value,
-            "unit": config["unit"],
-            "location": config["location"],
-            "meta": {
-                "sensor_type": config["type"],
-                "status": status,
-                "min_threshold": config["range"][0],
-                "max_threshold": config["range"][1],
-                "generated_at": datetime.now(timezone.utc).isoformat()
-            }
-        }
-        
-        return reading_data
+        sensor_data = generate_sensor_data_for_db(line_id, component_id)
+        logger.info(f'Generated sensor data for {line_id}/{component_id}')
+        return sensor_data
     
     def save_to_database(self, reading_data: Dict[str, Any]) -> bool:
         """保存到数据库"""
         try:
             db: Session = SessionLocal()
             
-            # 创建SensorReading对象
-            sensor_reading = SensorReading(
-                sensor_id=reading_data["sensor_id"],
-                timestamp=reading_data["timestamp"],
-                value=reading_data["value"],
-                unit=reading_data["unit"],
-                location=reading_data["location"],
-                meta=reading_data["meta"]
-            )
+            # 创建SensorData对象，使用新的数据结构
+            sensor_data = SensorData(**reading_data)
             
-            db.add(sensor_reading)
+            db.add(sensor_data)
             db.commit()
-            db.refresh(sensor_reading)
+            db.refresh(sensor_data)
             
-            logger.debug(f"Saved sensor reading to database: {reading_data['sensor_id']}")
+            logger.info(f"Saved sensor data to database: {reading_data['line_id']}/{reading_data['component_id']} at {reading_data['timestamp']}")
             return True
             
         except Exception as e:
-            logger.error(f"Failed to save sensor reading to database: {e}")
+            logger.error(f"Failed to save sensor data to database: {e}")
             db.rollback()
             return False
         finally:
             db.close()
     
-    def publish_to_mqtt(self, reading_data: Dict[str, Any]) -> bool:
+    def publish_to_mqtt(self, sensor_data: Dict[str, Any]) -> bool:
         """发布到MQTT"""
         try:
             # 准备MQTT消息数据
-            mqtt_data = {
-                "sensor_id": reading_data["sensor_id"],
-                "timestamp": reading_data["timestamp"].isoformat(),
-                "value": reading_data["value"],
-                "unit": reading_data["unit"],
-                "location": reading_data["location"],
-                "meta": reading_data["meta"]
-            }
-            
+            # mqtt_data = {
+            #     "sensor_id": reading_data["sensor_id"],
+            #     "timestamp": reading_data["timestamp"].isoformat(),
+            #     "value": reading_data["value"],
+            #     "unit": reading_data["unit"],
+            #     "location": reading_data["location"],
+            #     "meta": reading_data["meta"]
+            # }
+            mqtt_data = sensor_data
+            logger.info(f"Publishing sensor data to MQTT: {mqtt_data}")
             # 发布到MQTT
             success = publish_sensor_data(mqtt_data)
             
             if not success:
-                logger.error(f"Failed to publish sensor data to MQTT: {reading_data['sensor_id']}")
+                logger.error(f"Failed to publish sensor data to MQTT: {sensor_data['sensor_id']}")
             
             return success
             
@@ -106,6 +85,7 @@ class SensorDataProducer:
     
     async def generate_all_sensors_async(self) -> List[Dict[str, Any]]:
         """异步生成所有传感器的数据"""
+
         readings = []
         
         for sensor_id, config in SENSOR_CONFIGS.items():
@@ -128,35 +108,26 @@ class SensorDataProducer:
         logger.info(f"Generated {len(readings)} sensor readings")
         return readings
     
-    def generate_all_sensors(self) -> List[Dict[str, Any]]:
-        """生成所有传感器的数据（同步版本，用于兼容）"""
-        readings = []
-        
-        for sensor_id, config in SENSOR_CONFIGS.items():
-            try:
-                reading_data = self.generate_sensor_reading(sensor_id, config)
-                readings.append(reading_data)
-                
-                # 保存到数据库
-                self.save_to_database(reading_data)
-                
+    def generate_batch_sensor_data(self, count: int = 10) -> List[Dict[str, Any]]:
+        """生成批量传感器数据"""
+        try:
+            # 使用新的批量生成函数
+            records = generate_multiple_sensor_data_records(count=count)
+            
+            # 批量保存到数据库
+            saved_count = 0
+            for record in records:
+                if self.save_to_database(record):
+                    saved_count += 1
                 # 发布到MQTT
-                self.publish_to_mqtt(reading_data)
-                
-                # 尝试异步广播到WebSocket（如果在事件循环中）
-                try:
-                    loop = asyncio.get_event_loop()
-                    if loop.is_running():
-                        asyncio.create_task(self.broadcast_to_websocket(reading_data))
-                except RuntimeError:
-                    # 没有事件循环，跳过WebSocket广播
-                    pass
-                
-            except Exception as e:
-                logger.error(f"Failed to generate data for sensor {sensor_id}: {e}")
-        
-        logger.info(f"Generated {len(readings)} sensor readings")
-        return readings
+                self.publish_to_mqtt(record)
+            
+            logger.info(f"Generated and saved {saved_count}/{count} sensor data records")
+            return records
+            
+        except Exception as e:
+            logger.error(f"Failed to generate batch sensor data: {e}")
+            return []
     
     def start(self):
         """启动数据生产"""

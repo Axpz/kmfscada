@@ -1,0 +1,727 @@
+[
+    {
+        "id": "fb417ec5f80fdcde",
+        "type": "tab",
+        "label": "流程 1",
+        "disabled": false,
+        "info": "",
+        "env": []
+    },
+    {
+        "id": "636d0116c658281f",
+        "type": "mqtt-broker",
+        "name": "",
+        "broker": "74.121.149.207",
+        "port": "1883",
+        "clientid": "",
+        "autoConnect": true,
+        "usetls": false,
+        "protocolVersion": "5",
+        "keepalive": "60",
+        "cleansession": true,
+        "autoUnsubscribe": true,
+        "birthTopic": "",
+        "birthQos": "0",
+        "birthRetain": "false",
+        "birthPayload": "",
+        "birthMsg": {},
+        "closeTopic": "",
+        "closeQos": "0",
+        "closeRetain": "false",
+        "closePayload": "",
+        "closeMsg": {},
+        "willTopic": "",
+        "willQos": "0",
+        "willRetain": "false",
+        "willPayload": "",
+        "willMsg": {},
+        "userProps": "",
+        "sessionExpiry": "60"
+    },
+    {
+        "id": "c59074cdaaa9150a",
+        "type": "debug",
+        "z": "fb417ec5f80fdcde",
+        "name": "调试 1",
+        "active": false,
+        "tosidebar": true,
+        "console": false,
+        "tostatus": false,
+        "complete": "false",
+        "statusVal": "",
+        "statusType": "auto",
+        "x": 380,
+        "y": 260,
+        "wires": []
+    },
+    {
+        "id": "8a91e65815a0880c",
+        "type": "Siemens",
+        "z": "fb417ec5f80fdcde",
+        "name": "",
+        "protocol": "iplink_SiemensS7",
+        "IPAddress": "192.168.1.6",
+        "DestPort": "102",
+        "IPLinkTimeout": "2000",
+        "IPCommTimeout": "2000",
+        "Spname": null,
+        "Baudrate": "9600",
+        "Databits": "8",
+        "Stopbit": "1",
+        "Paritybit": "0",
+        "SpReadTimeout": "-1",
+        "SpWriteTimeout": "-1",
+        "SpSleepTimeout": "0",
+        "readCyc": "-1",
+        "vartable": [
+            {
+                "read": true,
+                "groups": "",
+                "name": "",
+                "addr": "V5000",
+                "type": "UInt32"
+            },
+            {
+                "read": true,
+                "groups": "",
+                "name": "",
+                "addr": "v5004",
+                "type": "UInt16",
+                "id": "la9m.3llll8ngr4hmry5n"
+            },
+            {
+                "read": true,
+                "groups": "",
+                "name": "",
+                "addr": "v1304",
+                "type": "Float",
+                "id": "12gdf.p7777dp6zngko7lm"
+            },
+            {
+                "read": true,
+                "groups": "",
+                "name": "",
+                "addr": "v0-10",
+                "type": "String-ASCII",
+                "id": "12wmivv4hvq79k"
+            },
+            {
+                "read": true,
+                "groups": "a",
+                "name": "",
+                "addr": "v502",
+                "type": "UInt16",
+                "id": "159gp.3llll8n2c9svfl6e"
+            },
+            {
+                "read": true,
+                "groups": "a",
+                "name": "",
+                "addr": "v504",
+                "type": "UInt16",
+                "id": "15c0l.i9rvoicda5"
+            },
+            {
+                "read": true,
+                "groups": "a",
+                "name": "",
+                "addr": "v506",
+                "type": "UInt16",
+                "id": "15esb.i4it3h0tyh"
+            },
+            {
+                "read": true,
+                "groups": "a",
+                "name": "",
+                "addr": "v508",
+                "type": "UInt16",
+                "id": "15ff7.77777dpxiktlknng"
+            }
+        ],
+        "SiemensS7Model": "5",
+        "SiemensS7ConnectionType": "1",
+        "SiemensS7Rack": "0",
+        "SiemensS7Slot": "3",
+        "SiemensS7LocalTSAP": "4D57",
+        "SiemensS7DestTSAP": "4D57",
+        "SiemensPPIStation": "2",
+        "SiemensPPIOverTCPStation": "2",
+        "customName": "Siemens:S7",
+        "x": 390,
+        "y": 340,
+        "wires": [
+            [
+                "abfd616ca3201208"
+            ],
+            []
+        ]
+    },
+    {
+        "id": "2ba49d780f63caad",
+        "type": "ping",
+        "z": "fb417ec5f80fdcde",
+        "protocol": "Automatic",
+        "mode": "timed",
+        "name": "",
+        "host": "192.168.1.6",
+        "timer": "1",
+        "inputs": 0,
+        "x": 250,
+        "y": 80,
+        "wires": [
+            [
+                "0e7e93d03003927b"
+            ]
+        ]
+    },
+    {
+        "id": "0e7e93d03003927b",
+        "type": "debug",
+        "z": "fb417ec5f80fdcde",
+        "name": "调试 2",
+        "active": false,
+        "tosidebar": true,
+        "console": false,
+        "tostatus": false,
+        "complete": "false",
+        "statusVal": "",
+        "statusType": "auto",
+        "x": 420,
+        "y": 80,
+        "wires": []
+    },
+    {
+        "id": "55dcdb91d9e3cb6e",
+        "type": "inject",
+        "z": "fb417ec5f80fdcde",
+        "name": "",
+        "props": [
+            {
+                "p": "payload"
+            },
+            {
+                "p": "topic",
+                "vt": "str"
+            }
+        ],
+        "repeat": "",
+        "crontab": "",
+        "once": false,
+        "onceDelay": 0.1,
+        "topic": "",
+        "payload": "",
+        "payloadType": "date",
+        "x": 210,
+        "y": 340,
+        "wires": [
+            [
+                "8a91e65815a0880c",
+                "ab2e6be03df96804"
+            ]
+        ]
+    },
+    {
+        "id": "abfd616ca3201208",
+        "type": "debug",
+        "z": "fb417ec5f80fdcde",
+        "name": "调试 3",
+        "active": true,
+        "tosidebar": true,
+        "console": false,
+        "tostatus": false,
+        "complete": "false",
+        "statusVal": "",
+        "statusType": "auto",
+        "x": 590,
+        "y": 300,
+        "wires": []
+    },
+    {
+        "id": "10ba63753deda977",
+        "type": "mqtt in",
+        "z": "fb417ec5f80fdcde",
+        "name": "",
+        "topic": "test/topic",
+        "qos": "2",
+        "datatype": "auto-detect",
+        "broker": "636d0116c658281f",
+        "nl": false,
+        "rap": true,
+        "rh": 0,
+        "inputs": 0,
+        "x": 240,
+        "y": 260,
+        "wires": [
+            [
+                "c59074cdaaa9150a"
+            ]
+        ]
+    },
+    {
+        "id": "0a08fc2f9518dfaf",
+        "type": "mqtt out",
+        "z": "fb417ec5f80fdcde",
+        "name": "",
+        "topic": "test/topic",
+        "qos": "",
+        "retain": "",
+        "respTopic": "",
+        "contentType": "",
+        "userProps": "",
+        "correl": "",
+        "expiry": "",
+        "broker": "636d0116c658281f",
+        "x": 760,
+        "y": 420,
+        "wires": []
+    },
+    {
+        "id": "d6f596fef0908eab",
+        "type": "function",
+        "z": "fb417ec5f80fdcde",
+        "name": "函数计算 1",
+        "func": "msg.payload = {\n    v5000:11,\n    v5004:31\n}\nreturn msg;",
+        "outputs": 1,
+        "timeout": 0,
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "libs": [],
+        "x": 390,
+        "y": 420,
+        "wires": [
+            [
+                "4500b7a0e7c4cc2b",
+                "f72cfe23c5b239ba",
+                "54fb449304c061dc"
+            ]
+        ]
+    },
+    {
+        "id": "cba0a558473f6ee6",
+        "type": "inject",
+        "z": "fb417ec5f80fdcde",
+        "name": "",
+        "props": [
+            {
+                "p": "payload"
+            },
+            {
+                "p": "topic",
+                "vt": "str"
+            }
+        ],
+        "repeat": "",
+        "crontab": "",
+        "once": false,
+        "onceDelay": 0.1,
+        "topic": "",
+        "payload": "",
+        "payloadType": "date",
+        "x": 210,
+        "y": 420,
+        "wires": [
+            [
+                "d6f596fef0908eab",
+                "8d106c6826e39ddb"
+            ]
+        ]
+    },
+    {
+        "id": "4500b7a0e7c4cc2b",
+        "type": "debug",
+        "z": "fb417ec5f80fdcde",
+        "name": "调试 4",
+        "active": false,
+        "tosidebar": true,
+        "console": false,
+        "tostatus": false,
+        "complete": "false",
+        "statusVal": "",
+        "statusType": "auto",
+        "x": 490,
+        "y": 380,
+        "wires": []
+    },
+    {
+        "id": "f72cfe23c5b239ba",
+        "type": "function",
+        "z": "fb417ec5f80fdcde",
+        "name": "函数计算 2",
+        "func": "msg.payload.time = Date.now()\nreturn msg;",
+        "outputs": 1,
+        "timeout": 0,
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "libs": [],
+        "x": 590,
+        "y": 420,
+        "wires": [
+            [
+                "0a08fc2f9518dfaf",
+                "3f2484f26587d898"
+            ]
+        ]
+    },
+    {
+        "id": "3f2484f26587d898",
+        "type": "debug",
+        "z": "fb417ec5f80fdcde",
+        "name": "调试 5",
+        "active": false,
+        "tosidebar": true,
+        "console": false,
+        "tostatus": false,
+        "complete": "false",
+        "statusVal": "",
+        "statusType": "auto",
+        "x": 700,
+        "y": 340,
+        "wires": []
+    },
+    {
+        "id": "ab2e6be03df96804",
+        "type": "debug",
+        "z": "fb417ec5f80fdcde",
+        "name": "调试 6",
+        "active": true,
+        "tosidebar": true,
+        "console": false,
+        "tostatus": false,
+        "complete": "false",
+        "statusVal": "",
+        "statusType": "auto",
+        "x": 300,
+        "y": 300,
+        "wires": []
+    },
+    {
+        "id": "8d106c6826e39ddb",
+        "type": "debug",
+        "z": "fb417ec5f80fdcde",
+        "name": "调试 7",
+        "active": false,
+        "tosidebar": true,
+        "console": false,
+        "tostatus": false,
+        "complete": "false",
+        "statusVal": "",
+        "statusType": "auto",
+        "x": 230,
+        "y": 380,
+        "wires": []
+    },
+    {
+        "id": "deb094fc0e431482",
+        "type": "rbe",
+        "z": "fb417ec5f80fdcde",
+        "name": "",
+        "func": "rbe",
+        "gap": "",
+        "start": "",
+        "inout": "out",
+        "septopics": true,
+        "property": "payload",
+        "topi": "name",
+        "x": 530,
+        "y": 500,
+        "wires": [
+            [
+                "944a9e80ad8a8f0a"
+            ]
+        ]
+    },
+    {
+        "id": "54fb449304c061dc",
+        "type": "split",
+        "z": "fb417ec5f80fdcde",
+        "name": "",
+        "splt": "\\n",
+        "spltType": "str",
+        "arraySplt": 1,
+        "arraySpltType": "len",
+        "stream": false,
+        "addname": "name",
+        "property": "payload",
+        "x": 370,
+        "y": 500,
+        "wires": [
+            [
+                "deb094fc0e431482",
+                "ee790c8a84b3424a"
+            ]
+        ]
+    },
+    {
+        "id": "944a9e80ad8a8f0a",
+        "type": "join",
+        "z": "fb417ec5f80fdcde",
+        "name": "",
+        "mode": "custom",
+        "build": "object",
+        "property": "payload",
+        "propertyType": "msg",
+        "key": "name",
+        "joiner": "\\n",
+        "joinerType": "str",
+        "accumulate": false,
+        "timeout": "0.1",
+        "count": "",
+        "reduceRight": false,
+        "reduceExp": "",
+        "reduceInit": "",
+        "reduceInitType": "",
+        "reduceFixup": "",
+        "x": 690,
+        "y": 500,
+        "wires": [
+            [
+                "dda9f30631f7626a"
+            ]
+        ]
+    },
+    {
+        "id": "dda9f30631f7626a",
+        "type": "debug",
+        "z": "fb417ec5f80fdcde",
+        "name": "调试 8",
+        "active": true,
+        "tosidebar": true,
+        "console": false,
+        "tostatus": false,
+        "complete": "false",
+        "statusVal": "",
+        "statusType": "auto",
+        "x": 850,
+        "y": 500,
+        "wires": []
+    },
+    {
+        "id": "35e44a0f94600e1b",
+        "type": "function",
+        "z": "fb417ec5f80fdcde",
+        "name": "函数计算 3",
+        "func": "msg.payload = {\n    v5000:12,\n    v5004:31\n}\nreturn msg;",
+        "outputs": 1,
+        "timeout": 0,
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "libs": [],
+        "x": 310,
+        "y": 580,
+        "wires": [
+            [
+                "54fb449304c061dc"
+            ]
+        ]
+    },
+    {
+        "id": "4e434c230ec0da7c",
+        "type": "inject",
+        "z": "fb417ec5f80fdcde",
+        "name": "",
+        "props": [
+            {
+                "p": "payload"
+            },
+            {
+                "p": "topic",
+                "vt": "str"
+            }
+        ],
+        "repeat": "",
+        "crontab": "",
+        "once": false,
+        "onceDelay": 0.1,
+        "topic": "",
+        "payload": "",
+        "payloadType": "date",
+        "x": 150,
+        "y": 580,
+        "wires": [
+            [
+                "35e44a0f94600e1b"
+            ]
+        ]
+    },
+    {
+        "id": "83305f5366e8ca40",
+        "type": "function",
+        "z": "fb417ec5f80fdcde",
+        "name": "函数计算 4",
+        "func": "msg.payload = {\n    v5000:11,\n    v5004:14\n}\nreturn msg;",
+        "outputs": 1,
+        "timeout": 0,
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "libs": [],
+        "x": 310,
+        "y": 660,
+        "wires": [
+            [
+                "54fb449304c061dc"
+            ]
+        ]
+    },
+    {
+        "id": "dfb841931d65cf97",
+        "type": "inject",
+        "z": "fb417ec5f80fdcde",
+        "name": "",
+        "props": [
+            {
+                "p": "payload"
+            },
+            {
+                "p": "topic",
+                "vt": "str"
+            }
+        ],
+        "repeat": "",
+        "crontab": "",
+        "once": false,
+        "onceDelay": 0.1,
+        "topic": "",
+        "payload": "",
+        "payloadType": "date",
+        "x": 150,
+        "y": 660,
+        "wires": [
+            [
+                "83305f5366e8ca40"
+            ]
+        ]
+    },
+    {
+        "id": "ee790c8a84b3424a",
+        "type": "debug",
+        "z": "fb417ec5f80fdcde",
+        "name": "调试 9",
+        "active": true,
+        "tosidebar": true,
+        "console": false,
+        "tostatus": false,
+        "complete": "true",
+        "targetType": "full",
+        "statusVal": "",
+        "statusType": "auto",
+        "x": 520,
+        "y": 560,
+        "wires": []
+    },
+    {
+        "id": "970801e1ad313057",
+        "type": "inject",
+        "z": "fb417ec5f80fdcde",
+        "name": "",
+        "props": [
+            {
+                "p": "payload"
+            },
+            {
+                "p": "topic",
+                "vt": "str"
+            }
+        ],
+        "repeat": "",
+        "crontab": "",
+        "once": false,
+        "onceDelay": 0.1,
+        "topic": "",
+        "payload": "",
+        "payloadType": "date",
+        "x": 130,
+        "y": 180,
+        "wires": [
+            [
+                "624ed0e8dcaa1124"
+            ]
+        ]
+    },
+    {
+        "id": "624ed0e8dcaa1124",
+        "type": "function",
+        "z": "fb417ec5f80fdcde",
+        "name": "函数计算 5",
+        "func": "global.set(\"data\", 1)\nreturn msg;",
+        "outputs": 1,
+        "timeout": 0,
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "libs": [],
+        "x": 290,
+        "y": 180,
+        "wires": [
+            []
+        ]
+    },
+    {
+        "id": "f5ba03ffbd408f48",
+        "type": "inject",
+        "z": "fb417ec5f80fdcde",
+        "name": "",
+        "props": [
+            {
+                "p": "payload"
+            },
+            {
+                "p": "topic",
+                "vt": "str"
+            }
+        ],
+        "repeat": "",
+        "crontab": "",
+        "once": false,
+        "onceDelay": 0.1,
+        "topic": "",
+        "payload": "",
+        "payloadType": "date",
+        "x": 590,
+        "y": 160,
+        "wires": [
+            [
+                "9fefe25274e412dc"
+            ]
+        ]
+    },
+    {
+        "id": "9fefe25274e412dc",
+        "type": "function",
+        "z": "fb417ec5f80fdcde",
+        "name": "函数计算 6",
+        "func": "msg.payload = global.get(\"data\")\nreturn msg;",
+        "outputs": 1,
+        "timeout": 0,
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "libs": [],
+        "x": 750,
+        "y": 160,
+        "wires": [
+            [
+                "bec1119c7395103d"
+            ]
+        ]
+    },
+    {
+        "id": "bec1119c7395103d",
+        "type": "debug",
+        "z": "fb417ec5f80fdcde",
+        "name": "调试 10",
+        "active": true,
+        "tosidebar": true,
+        "console": false,
+        "tostatus": false,
+        "complete": "false",
+        "statusVal": "",
+        "statusType": "auto",
+        "x": 800,
+        "y": 220,
+        "wires": []
+    }
+]

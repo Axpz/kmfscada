@@ -58,15 +58,20 @@ class Settings(BaseSettings):
     LOG_LEVEL: str = "INFO"
     
     # MQTT Configuration
-    MQTT_BROKER_HOST: str = "localhost"
+    MQTT_BROKER_HOST: str = "74.121.149.207"
     MQTT_BROKER_PORT: int = 1883
-    MQTT_USERNAME: Optional[str] = None
-    MQTT_PASSWORD: Optional[str] = None
+    MQTT_USERNAME: Optional[str] = "admin"
+    MQTT_PASSWORD: Optional[str] = "admin123"
     MQTT_CLIENT_ID: str = "kmf_scada_client"
     MQTT_WORKER_PROCESSES: int = 2
     MQTT_QUEUE_SIZE: int = 200
     MQTT_BATCH_SIZE: int = 10
-    
+
+    MQTT_SENSORS_TOPIC: str = "kmf/scada/sensors/+/data"
+
+    KMF_LINES: list[int] = [1, 2, 3, 4, 5, 6, 7, 8] # 生产线数量
+    KMF_DEVICES: list[str] = ["master", "winder"]   # 设备类型
+
     # WebSocket Configuration
     WEBSOCKET_BROADCAST_QUEUE_SIZE: int = 50
     

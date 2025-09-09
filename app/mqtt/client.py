@@ -13,39 +13,41 @@ class MQTTClient:
         self.client: Optional[mqtt.Client] = None
         self.connected = False
         self.task_queue: Optional[Queue] = None
+        self.running = False
 
-    def set_task_queue(self, task_queue: Queue):
+    def set_task_queue(self, task_queue):
         """设置任务队列"""
         self.task_queue = task_queue
-
-    def init(self):
-        self.connect()
         
-    def connect(self):
-        """连接到MQTT broker"""
-        try:
-            self.client = mqtt.Client(client_id=settings.MQTT_CLIENT_ID)
-            
-            # 设置回调函数
-            self.client.on_connect = self._on_connect
-            self.client.on_disconnect = self._on_disconnect
-            self.client.on_message = self._on_message
-            
-            # 设置用户名密码（如果有）
-            if settings.MQTT_USERNAME and settings.MQTT_PASSWORD:
-                self.client.username_pw_set(settings.MQTT_USERNAME, settings.MQTT_PASSWORD)
-            
-            # 连接到broker
-            self.client.connect(settings.MQTT_BROKER_HOST, settings.MQTT_BROKER_PORT, 60)
-            self.client.loop_start()
-            
-            logger.info(f"Connecting to MQTT broker at {settings.MQTT_BROKER_HOST}:{settings.MQTT_BROKER_PORT}")
-            
-        except Exception as e:
-            logger.error(f"Failed to connect to MQTT broker: {e}")
+    def run(self):
+        """在后台持续运行和重连"""
+        self.running = True
+        while self.running:
+            try:
+                self.client = mqtt.Client(client_id=settings.MQTT_CLIENT_ID, clean_session=False, protocol=mqtt.MQTTv311)
+                
+                # 设置回调函数
+                self.client.on_connect = self._on_connect
+                self.client.on_disconnect = self._on_disconnect
+                self.client.on_message = self._on_message
+                
+                # 设置用户名密码（如果有）
+                if settings.MQTT_USERNAME and settings.MQTT_PASSWORD:
+                    self.client.username_pw_set(settings.MQTT_USERNAME, settings.MQTT_PASSWORD)
+                
+                # 连接到broker
+                self.client.connect(settings.MQTT_BROKER_HOST, settings.MQTT_BROKER_PORT, 60)
+                self.client.loop_forever()
+                
+                logger.info(f"Connecting to MQTT broker at {settings.MQTT_BROKER_HOST}:{settings.MQTT_BROKER_PORT}")   
+            except Exception as e:
+                self.connected = False
+                logger.error(f"Failed to connect to MQTT broker: {e}. Retrying in 5 seconds...")
+                time.sleep(5)
     
     def disconnect(self):
         """断开MQTT连接"""
+        self.running = False
         if self.client:
             self.client.loop_stop()
             self.client.disconnect()
@@ -96,16 +98,17 @@ class MQTTClient:
             logger.info("Connected to MQTT broker successfully")
             
             # 自动订阅传感器数据主题
-            client.subscribe("kmf/scada/sensors/+/data")
-            client.subscribe("kmf/scada/sensors/data")  # 兼容不同格式
+            self.subscribe("kmf/scada/sensors/+/data")
+            self.subscribe("kmf/scada/sensors/data")  # 兼容不同格式
             logger.info("Auto-subscribed to sensor data topics")
         else:
+            self.connected = False
             logger.error(f"Failed to connect to MQTT broker, return code: {rc}")
     
     def _on_disconnect(self, client, userdata, rc):
         """断开连接回调"""
         self.connected = False
-        logger.warning("Disconnected from MQTT broker")
+        logger.warning(f"Disconnected from MQTT broker, return code: {rc}")
     
     def _on_message(self, client, userdata, msg):
         """消息接收回调 - 将消息放入队列"""
@@ -119,7 +122,7 @@ class MQTTClient:
             # 将消息放入队列供Worker进程处理
             if self.task_queue:
                 try:
-                    self.task_queue.put_nowait(payload)
+                    self.task_queue.put(payload)
                     logger.debug("Message added to task queue")
                 except Exception as e:
                     print("⚠️ 队列满了，消息被丢弃！")

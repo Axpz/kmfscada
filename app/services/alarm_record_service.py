@@ -5,6 +5,7 @@ from sqlalchemy import and_, or_, desc, func
 from app.models.alarm_record import AlarmRecord
 from app.schemas.alarm_record import AlarmRecordCreate, AlarmRecordFilter
 from app.core.logging import get_logger
+from app.services.audit_log_service import AuditLogService
 
 logger = get_logger(__name__)
 
@@ -14,6 +15,7 @@ class AlarmRecordService:
     
     def __init__(self, db: Session):
         self.db = db
+        self.audit = AuditLogService(db)
     
     def create_alarm_record(self, record_data: AlarmRecordCreate) -> AlarmRecord:
         """创建报警记录"""
@@ -70,6 +72,11 @@ class AlarmRecordService:
             self.db.refresh(record)
             
             logger.info(f"确认报警记录: {record_id} by {user}")
+            self.audit.create_log_entry(
+                email=user,
+                action="acknowledge_alarm",
+                detail=f"确认报警记录: {record_id}"
+            )
             return record
             
         except Exception as e:

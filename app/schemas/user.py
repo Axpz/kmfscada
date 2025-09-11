@@ -25,8 +25,6 @@ class UserValidatorMixin:
                 return None
             if not 3 <= len(v) <= 20:
                 raise ValueError("Username must be between 3 and 20 characters")
-            if not re.match(r"^[a-zA-Z0-9_-]+$", v):
-                raise ValueError("Username can only contain letters, numbers, underscores, and hyphens")
         return v
     
     @staticmethod
@@ -102,6 +100,7 @@ class UserUpdateValidator(BaseModel, UserValidatorMixin):
     
     username: Optional[str] = None
     password: Optional[str] = None
+    new_password: Optional[str] = None
     full_name: Optional[str] = None
 
     @field_validator("username")

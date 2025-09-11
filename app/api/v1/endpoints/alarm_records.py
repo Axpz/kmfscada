@@ -1,4 +1,4 @@
-from typing import Any, List
+from typing import Any, Dict
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
 
@@ -21,6 +21,7 @@ def create_alarm_record(
     *,
     db: Session = Depends(deps.get_db),
     alarm_record: AlarmRecordCreate,
+    current_user: Dict[str, Any] = Depends(deps.get_current_active_user)
 ) -> Any:
     """
     创建报警记录
@@ -36,12 +37,13 @@ def acknowledge_alarm_record(
     db: Session = Depends(deps.get_db),
     alarm_record_id: int,
     acknowledge_data: AlarmRecordAcknowledge,
+    current_user: Dict[str, Any] = Depends(deps.get_current_active_user)
 ) -> Any:
     """
     确认报警记录
     """
     service = AlarmRecordService(db)
-    record = service.acknowledge_alarm(alarm_record_id, acknowledge_data.acknowledged_by)
+    record = service.acknowledge_alarm(alarm_record_id, current_user.get("email"))
     
     if not record:
         raise HTTPException(status_code=404, detail="报警记录不存在")
@@ -54,12 +56,13 @@ def acknowledge_alarm_record(
     *,
     db: Session = Depends(deps.get_db),
     acknowledge_data: AlarmRecordAcknowledge,
+    current_user: Dict[str, Any] = Depends(deps.get_current_active_user)
 ) -> Any:
     """
     确认报警记录
     """
     service = AlarmRecordService(db)
-    affected = service.acknowledge_all(None)
+    affected = service.acknowledge_all(current_user.get("email"))
     
     if affected is None:
         raise HTTPException(status_code=500, detail="确认报警记录失败")

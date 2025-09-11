@@ -107,7 +107,7 @@ async def get_current_active_superuser(
     # Check if user has admin role in user_metadata
     logger.info(f"Current supabase user: {supabase_user}")
     user_metadata = supabase_user.get("user_metadata", {})
-    if not user_metadata.get("role") == "super_admin":
+    if user_metadata.get("role") not in ["admin", "super_admin"]:
         logger.warning("Non-admin user attempted admin access", extra={
             "extra_fields": {
                 "auth_error": "insufficient_privileges",
@@ -120,23 +120,3 @@ async def get_current_active_superuser(
             detail="The user doesn't have enough privileges"
         )
     return supabase_user
-
-
-async def get_supabase_user_only(
-    supabase_user: Dict[str, Any] = Depends(get_current_user_from_supabase)
-) -> Dict[str, Any]:
-    """Get Supabase user data only."""
-    return supabase_user
-
-
-async def get_optional_supabase_user(
-    credentials: Optional[HTTPAuthorizationCredentials] = Depends(security)
-) -> Optional[Dict[str, Any]]:
-    """Get Supabase user data if token is provided (optional authentication)."""
-    if not credentials:
-        return None
-    
-    try:
-        return await get_current_user_from_supabase(credentials)
-    except HTTPException:
-        return None 

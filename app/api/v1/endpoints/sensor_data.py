@@ -5,6 +5,7 @@ from sqlalchemy.orm import Session
 from app import crud, schemas
 from app.api import deps
 from app.schemas.sensor_data import SensorDataFilter, SensorDataListResponse, UtilizationResponse, SensorDataExportFilter
+from app.services.audit_log_service import AuditLogService
 from app.services.export_record_service import ExportRecordService
 from app.services.sensor_data_service import SensorDataService
 from datetime import datetime
@@ -42,6 +43,7 @@ def get_utilization(
 def export_sensor_data(
     db: Session = Depends(deps.get_db),
     filters: SensorDataExportFilter = Body(...),
+    current_user: Dict[str, Any] = Depends(deps.get_current_active_user),
 ) -> Any:
     """
     流式导出传感器数据到Excel文件，适用于大数据量场景。
@@ -50,7 +52,7 @@ def export_sensor_data(
     try:
         export_record_service = ExportRecordService(db)
         service = SensorDataService(db, export_record_service=export_record_service)
-        
+            
         # 生成文件名
         timestamp = datetime.now().strftime("%Y%m%d%H%M%S")
         start_time = filters.start_time.strftime("%Y%m%d%H%M%S")
@@ -60,7 +62,13 @@ def export_sensor_data(
         filename = f"sensor_data_export_{clean_line_ids}_{start_time}_{end_time}_{timestamp}.xlsx"
         
         logger.info("Starting streaming Excel export")
-        
+
+        AuditLogService(db).create_log_entry(
+            email=current_user.get("email"),
+            action="export_sensor_data",
+            detail=f"导出传感器数据: {filters.line_ids} {filters.start_time} {filters.end_time}"
+        )
+
         # 使用流式导出
         return StreamingResponse(
             service.export_sensor_data_streaming(filters),

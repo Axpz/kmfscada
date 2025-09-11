@@ -1,8 +1,9 @@
 from fastapi import APIRouter, Depends, HTTPException, status, Body
 from sqlalchemy.orm import Session
-from typing import List
+from typing import List, Dict, Any
 import logging
 from app.api import deps
+from app.services.audit_log_service import AuditLogService
 from app.services.production_line_service import ProductionLineService
 from app.schemas.production_line import (
     ProductionLineCreate, 
@@ -72,7 +73,8 @@ async def list_production_lines(
 async def create_production_line(
     *,
     db: Session = Depends(deps.get_db),
-    line_in: ProductionLineCreate
+    line_in: ProductionLineCreate,
+    current_user: Dict[str, Any] = Depends(deps.get_current_active_user)
 ) -> ProductionLineInDB:
     try:
         logger.info(f"Creating production line: {line_in.name}")
@@ -90,6 +92,12 @@ async def create_production_line(
         line = service.create(line_in)
         logger.info(f"Successfully created production line: {line.name} (ID: {line.id})")
         
+        AuditLogService(db).create_log_entry(
+            email=current_user.get("email"),
+            action="create_production_line",
+            detail=f"创建生产线: {line.name}"
+        )
+        
         return line
         
     except HTTPException:
@@ -105,7 +113,8 @@ async def create_production_line(
 async def read_production_line(
     *,
     db: Session = Depends(deps.get_db),
-    line_id: int
+    line_id: int,
+    current_user: Dict[str, Any] = Depends(deps.get_current_active_user)
 ) -> ProductionLineInDB:
     try:
         logger.info(f"Fetching production line with ID: {line_id}")
@@ -136,7 +145,8 @@ async def update_production_line(
     *,
     db: Session = Depends(deps.get_db),
     line_id: int,
-    line_in: ProductionLineUpdate
+    line_in: ProductionLineUpdate,
+    current_user: Dict[str, Any] = Depends(deps.get_current_active_user)
 ) -> ProductionLineInDB:
     try:
         logger.info(f"Updating production line {line_id} with data: {line_in}")
@@ -164,6 +174,12 @@ async def update_production_line(
         updated_line = service.update(line, line_in)
         logger.info(f"Successfully updated production line {line_id}")
         
+        AuditLogService(db).create_log_entry(
+            email=current_user.get("email"),
+            action="update_production_line",
+            detail=f"更新生产线: {line.name}"
+        )
+        
         return updated_line
         
     except HTTPException:
@@ -179,7 +195,8 @@ async def update_production_line(
 async def delete_production_line(
     *,
     db: Session = Depends(deps.get_db),
-    line_id: int
+    line_id: int,
+    current_user: Dict[str, Any] = Depends(deps.get_current_active_user)
 ):
     try:
         logger.info(f"Deleting production line {line_id}")
@@ -196,6 +213,12 @@ async def delete_production_line(
         
         service.delete(line_id)
         logger.info(f"Successfully deleted production line {line_id}")
+        
+        AuditLogService(db).create_log_entry(
+            email=current_user.get("email"),
+            action="delete_production_line",
+            detail=f"删除生产线: {line.name}"
+        )
         
     except HTTPException:
         raise

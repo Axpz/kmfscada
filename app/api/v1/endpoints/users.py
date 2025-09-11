@@ -1,8 +1,10 @@
 from typing import Dict, Any
 from fastapi import APIRouter, Depends, HTTPException, status
+from sqlalchemy.orm import Session
 
 from app.api import deps
 from app.core.supabase import supabase_auth
+from app.services.audit_log_service import AuditLogService
 from app.schemas.user import (
     UserCreateValidator, 
     SuperUserUpdateValidator, 
@@ -23,6 +25,7 @@ async def get_users(
 @router.post("/", status_code=status.HTTP_201_CREATED)
 async def create_user(
     user_data: UserCreateValidator,
+    db: Session = Depends(deps.get_db),
     current_user: Dict[str, Any] = Depends(deps.get_current_active_superuser)
 ) -> Dict[str, Any]:
     """Create a new user (admin only)"""
@@ -42,6 +45,12 @@ async def create_user(
             password=user_data.password,
             user_metadata=user_metadata
         )
+
+        AuditLogService(db).create_log_entry(
+            email=current_user.get("email"),
+            action="create_user",
+            detail=f"创建用户: {user_data.email}"
+        )
         
         return supabase_user
         
@@ -54,11 +63,11 @@ async def create_user(
             detail="Failed to create user"
         )
 
-
 @router.put("/{user_id}")
 async def update_user(
     user_id: str,
     update_data: SuperUserUpdateValidator,
+    db: Session = Depends(deps.get_db),
     current_user: Dict[str, Any] = Depends(deps.get_current_active_superuser)
 ) -> Dict[str, Any]:
     """Update user information (admin only)"""
@@ -86,6 +95,12 @@ async def update_user(
         if update_data.password:
             supabase_update_data["password"] = update_data.password
         
+        AuditLogService(db).create_log_entry(
+            email=current_user.get("email"),
+            action="update_user",
+            detail=f"更新用户: {user_data.get('email')}"
+        )
+        
         return await supabase_auth.update_user(user_id, supabase_update_data)
         
     except HTTPException:
@@ -101,6 +116,7 @@ async def update_user(
 @router.delete("/{user_id}")
 async def delete_user(
     user_id: str,
+    db: Session = Depends(deps.get_db),
     current_user: Dict[str, Any] = Depends(deps.get_current_active_superuser)
 ) -> Dict[str, Any]:
     """Delete user (admin only)"""
@@ -121,6 +137,12 @@ async def delete_user(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail="Cannot delete your own account"
             )
+
+        AuditLogService(db).create_log_entry(
+            email=current_user.get("email"),
+            action="delete_user",
+            detail=f"删除用户: {user_data.get('email')}"
+        )
         
         success = await supabase_auth.delete_user(user_id)
         if success:

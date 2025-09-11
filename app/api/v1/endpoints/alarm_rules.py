@@ -1,9 +1,10 @@
-from typing import Any, List
+from typing import Any, List, Dict
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from app import schemas
 from app.api import deps
 from app.services.alarm_rule_service import AlarmRuleService
+from app.services.audit_log_service import AuditLogService
 from app.core.logging import get_logger
 
 logger = get_logger(__name__)
@@ -37,6 +38,7 @@ def create_alarm_rule(
     *,
     db: Session = Depends(deps.get_db),
     alarm_rule_in: schemas.AlarmRuleCreate,
+    current_user: Dict[str, Any] = Depends(deps.get_current_active_user)
 ) -> Any:
     """
     创建新的报警规则
@@ -54,6 +56,12 @@ def create_alarm_rule(
                 detail=f"生产线 {alarm_rule_in.line_id} 的参数 {alarm_rule_in.parameter_name} 已存在规则"
             )
     logger.info(f"Creating alarm rule: {alarm_rule_in.dict()}")
+
+    AuditLogService(db).create_log_entry(
+        email=current_user.get("email"),
+        action="create_alarm_rule",
+        detail=f"创建报警规则: {alarm_rule_in.line_id}/{alarm_rule_in.parameter_name}"
+    )
     
     return service.create_rule(alarm_rule_in.dict())
 
@@ -64,6 +72,7 @@ def update_alarm_rule(
     db: Session = Depends(deps.get_db),
     alarm_rule_id: int,
     alarm_rule_in: schemas.AlarmRuleUpdate,
+    current_user: Dict[str, Any] = Depends(deps.get_current_active_user)
 ) -> Any:
     """
     更新报警规则
@@ -77,6 +86,12 @@ def update_alarm_rule(
     
     # 更新规则
     updated_rule = service.update_rule(alarm_rule_id, alarm_rule_in.dict(exclude_unset=True))
+
+    AuditLogService(db).create_log_entry(
+        email=current_user.get("email"),
+        action="update_alarm_rule",
+        detail=f"更新报警规则: {alarm_rule_id}/{alarm_rule_in.parameter_name}"
+    )
     return updated_rule
 
 
@@ -85,6 +100,7 @@ def delete_alarm_rule(
     *,
     db: Session = Depends(deps.get_db),
     alarm_rule_id: int,
+    current_user: Dict[str, Any] = Depends(deps.get_current_active_user)
 ) -> Any:
     """
     删除报警规则
@@ -100,6 +116,12 @@ def delete_alarm_rule(
     success = service.delete_rule(alarm_rule_id)
     if not success:
         raise HTTPException(status_code=500, detail="删除失败")
+    
+    AuditLogService(db).create_log_entry(
+        email=current_user.get("email"),
+        action="delete_alarm_rule",
+        detail=f"删除报警规则: {alarm_rule_id}"
+    )
     
     return {"message": "删除成功"}
 

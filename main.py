@@ -1,13 +1,14 @@
 import asyncio
 import signal
 import sys
-from fastapi import FastAPI
+from fastapi import FastAPI, Request, Depends
 from fastapi.middleware.cors import CORSMiddleware
 from contextlib import asynccontextmanager
-
+from starlette.middleware.base import BaseHTTPMiddleware
 from app.core.config import settings
 from app.core.database import engine, Base
 from app.core.logging import init_logging, get_logger
+from app.core.context import set_request
 from app.middleware import LoggingMiddleware
 from app.api.v1.api import api_router
 from app.mqtt.manager import mqtt_manager
@@ -66,6 +67,13 @@ app = FastAPI(
     redoc_url="/redoc",
 )
 
+class RequestContextMiddleware(BaseHTTPMiddleware):
+    async def dispatch(self, request, call_next):
+        set_request(request)  # 每次请求设置 contextvar
+        response = await call_next(request)
+        return response
+
+
 # CORS middleware
 app.add_middleware(
     CORSMiddleware,
@@ -77,7 +85,7 @@ app.add_middleware(
 
 # Logging middleware
 app.add_middleware(LoggingMiddleware)
-
+app.add_middleware(RequestContextMiddleware)
 
 @app.get("/")
 async def root():
